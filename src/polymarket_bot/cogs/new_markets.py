@@ -12,7 +12,8 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from polymarket_bot import market_url, store
-from polymarket_bot.formatting import format_market_embed, format_market_list
+from polymarket_bot.formatting import format_market_embed, format_market_list, total_pages
+from polymarket_bot.views import MarketPaginationView
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
@@ -150,10 +151,18 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
             await interaction.followup.send("No new markets found since last check.")
             return
 
-        embeds = format_market_list(new_markets, page=0, per_page=10)
-        embeds[0].title = "🆕 New Markets"
-        embeds[0].colour = discord.Colour.green()
-        await interaction.followup.send(embeds=embeds)
+        per_page = 5
+        title = f"🆕 New Markets ({len(new_markets)} found)"
+        colour = discord.Colour.green()
+
+        embeds = format_market_list(new_markets, page=0, per_page=per_page)
+        embeds[0].title = title
+        embeds[0].colour = colour
+
+        kwargs: dict = {"embeds": embeds}
+        if total_pages(len(new_markets), per_page) > 1:
+            kwargs["view"] = MarketPaginationView(new_markets, per_page=per_page, title=title, colour=colour)
+        await interaction.followup.send(**kwargs)
 
 
 async def setup(bot: PolymarketBot) -> None:
