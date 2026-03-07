@@ -1,9 +1,9 @@
-"""New Market Alerts cog — hourly check for newly listed Polymarket markets."""
+"""Trending Events cog — surfaces hot new Polymarket events by volume velocity."""
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -11,88 +11,174 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from polymarket_bot import market_url, store
-from polymarket_bot.formatting import format_market_embed, format_market_list, total_pages
-from polymarket_bot.views import MarketPaginationView
+from polymarket_bot.formatting import format_trending_events
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
 
 log = logging.getLogger(__name__)
 
-GAMMA_PAGE_LIMIT = 100
+# Tags to exclude from trending results
+EXCLUDED_TAGS: set[str] = {
+    "sports",
+    "soccer",
+    "epl",
+    "la liga",
+    "serie a",
+    "ligue 1",
+    "bundesliga",
+    "nba",
+    "nhl",
+    "hockey",
+    "basketball",
+    "golf",
+    "pga tour",
+    "fifa world cup",
+    "champions league",
+    "stanley cup",
+    "nba finals",
+    "nba champion",
+    "esports",
+    "counter strike 2",
+    "games",
+    "crypto",
+    "crypto prices",
+    "bitcoin",
+    "airdrops",
+    "stablecoins",
+    "pre-market",
+    "fdv",
+    "token launch",
+    "weather",
+    "recurring",
+}
+
+LOOKBACK_HOURS = 48
+MAX_RESULTS = 100
+EVENTS_PER_MESSAGE = 10
 
 
-async def _fetch_active_markets(session: aiohttp.ClientSession, gamma_url: str) -> list[dict]:
-    """Fetch all active, non-closed markets from the Gamma API (paginated)."""
-    all_markets: list[dict] = []
-    offset = 0
-    while True:
-        url = f"{gamma_url}/markets"
-        params = {
-            "active": "true",
-            "closed": "false",
-            "limit": GAMMA_PAGE_LIMIT,
-            "offset": offset,
-        }
-        async with session.get(url, params=params) as resp:
-            if resp.status != 200:
-                log.warning("Gamma API /markets returned %s", resp.status)
-                break
-            page = await resp.json()
-        if not page:
-            break
-        all_markets.extend(page)
-        if len(page) < GAMMA_PAGE_LIMIT:
-            break
-        offset += GAMMA_PAGE_LIMIT
-    return all_markets
+def _event_tag_labels(event: dict) -> list[str]:
+    """Extract lowercase tag labels from an event."""
+    return [t.get("label", "").lower() for t in (event.get("tags") or []) if isinstance(t, dict)]
 
 
-async def check_new_markets(
+def _has_excluded_tag(event: dict) -> bool:
+    """Return True if the event has any excluded tag."""
+    return bool(EXCLUDED_TAGS & set(_event_tag_labels(event)))
+
+
+def _volume_velocity(event: dict) -> float:
+    """Calculate volume per hour since event creation."""
+    volume = 0.0
+    try:
+        volume = float(event.get("volume") or 0)
+    except (TypeError, ValueError):
+        pass
+
+    now = datetime.now(timezone.utc)
+    for field in ("startDate", "createdAt"):
+        raw = event.get(field)
+        if raw:
+            try:
+                dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                age_hours = max((now - dt).total_seconds() / 3600, 0.1)
+                return volume / age_hours
+            except (ValueError, TypeError):
+                continue
+    return volume
+
+
+async def fetch_trending_events(
     session: aiohttp.ClientSession,
     gamma_url: str,
 ) -> list[dict]:
-    """Core logic for the new-market check.
+    """Fetch recent events, filter, and rank by volume velocity.
 
-    Returns a list of new market dicts, or an empty list on cold start.
-    Handles state loading, diffing, pruning, and saving via store.py.
+    No state needed — uses the Gamma API's start_date_min parameter.
+    Returns up to MAX_RESULTS events sorted by volume/hour.
     """
-    markets = await _fetch_active_markets(session, gamma_url)
-    active_ids = {m["id"] for m in markets}
-    active_by_id = {m["id"]: m for m in markets}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=LOOKBACK_HOURS)
+    cutoff_iso = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    state = await store.load("seen_markets")
-    seen_ids = set(state.get("seen_ids", []))
+    all_events: list[dict] = []
+    offset = 0
+    page_size = 100
+    while True:
+        params = {
+            "active": "true",
+            "closed": "false",
+            "start_date_min": cutoff_iso,
+            "order": "volume",
+            "ascending": "false",
+            "limit": page_size,
+            "offset": offset,
+        }
+        try:
+            async with session.get(f"{gamma_url}/events", params=params) as resp:
+                if resp.status != 200:
+                    log.warning("Gamma API /events returned %s", resp.status)
+                    break
+                page = await resp.json()
+        except Exception:
+            log.exception("Failed to fetch events from Gamma API")
+            break
 
-    is_cold_start = not state  # empty dict → first run
+        if not page:
+            break
+        all_events.extend(page)
+        if len(all_events) >= 500 or len(page) < page_size:
+            break
+        offset += page_size
 
-    # Diff: find IDs we haven't seen before
-    new_ids = active_ids - seen_ids
-    new_markets = [active_by_id[mid] for mid in new_ids]
+    # Filter out excluded categories
+    filtered = [e for e in all_events if not _has_excluded_tag(e)]
 
-    # Prune: only keep IDs that are still active
-    updated_ids = (seen_ids | new_ids) & active_ids
+    # Rank by volume velocity
+    filtered.sort(key=_volume_velocity, reverse=True)
 
-    await store.save(
-        "seen_markets",
-        {
-            "seen_ids": sorted(updated_ids),
-            "last_check": datetime.now(timezone.utc).isoformat(),
-        },
+    return filtered[:MAX_RESULTS]
+
+
+async def _post_trending_thread(
+    channel: discord.TextChannel,
+    events: list[dict],
+) -> None:
+    """Post a summary message, create a thread, and post all events inside it."""
+    now_str = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+    excluded_list = "Sports, Crypto, Weather, Esports"
+
+    summary = await channel.send(
+        embed=discord.Embed(
+            title=f"\U0001f525 Trending Events (Top {len(events)})",
+            description=(
+                f"Top events from the last {LOOKBACK_HOURS}h ranked by volume velocity.\n"
+                f"**Excluded**: {excluded_list}\n"
+                f"**Generated**: {now_str}"
+            ),
+            colour=discord.Colour.orange(),
+        )
     )
 
-    if is_cold_start:
-        log.info("Cold start: seeded %d market IDs, posting nothing.", len(updated_ids))
-        return []
+    thread = await summary.create_thread(
+        name=f"Trending Events \u2014 {datetime.now(timezone.utc).strftime('%b %d %H:%M')} UTC",
+    )
 
-    if new_markets:
-        log.info("Found %d new market(s).", len(new_markets))
-    return new_markets
+    # Post events in batches
+    for batch_start in range(0, len(events), EVENTS_PER_MESSAGE):
+        batch = events[batch_start : batch_start + EVENTS_PER_MESSAGE]
+        embeds = format_trending_events(
+            events,
+            page=batch_start // EVENTS_PER_MESSAGE,
+            per_page=EVENTS_PER_MESSAGE,
+        )
+        await thread.send(embeds=embeds)
 
 
 class NewMarketsCog(commands.Cog, name="NewMarkets"):
-    """Hourly alerts for newly listed Polymarket markets."""
+    """Surfaces trending new Polymarket events."""
 
     def __init__(self, bot: PolymarketBot) -> None:
         self.bot = bot
@@ -111,7 +197,7 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
         if self.session:
             await self.session.close()
 
-    @tasks.loop(hours=1)
+    @tasks.loop(hours=12)
     async def check_loop(self) -> None:
         await self._run_check()
 
@@ -128,41 +214,29 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
             log.warning("Alert channel %s not found.", self.alert_channel_id)
             return
 
-        new_markets = await check_new_markets(self.session, self.gamma_url)
-        if not new_markets:
+        events = await fetch_trending_events(self.session, self.gamma_url)
+        if not events:
             return
 
-        # Send each new market as a rich embed
-        for market in new_markets:
-            embed = format_market_embed(market)
-            embed.title = f"🆕 {market.get('question', 'New Market')}"
-            embed.colour = discord.Colour.green()
-            await channel.send(embed=embed)
+        log.info("Posting %d trending events to alert channel.", len(events))
+        await _post_trending_thread(channel, events)
 
-    @app_commands.command(name="new-markets", description="Manually check for new Polymarket markets")
-    async def new_markets_cmd(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name="trending", description="Top trending new Polymarket events (last 48h)")
+    async def trending_cmd(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         if not self.session:
             await interaction.followup.send("Session not ready.")
             return
 
-        new_markets = await check_new_markets(self.session, self.gamma_url)
-        if not new_markets:
-            await interaction.followup.send("No new markets found since last check.")
+        events = await fetch_trending_events(self.session, self.gamma_url)
+        if not events:
+            await interaction.followup.send("No trending events found.")
             return
 
-        per_page = 5
-        title = f"🆕 New Markets ({len(new_markets)} found)"
-        colour = discord.Colour.green()
-
-        embeds = format_market_list(new_markets, page=0, per_page=per_page)
-        embeds[0].title = title
-        embeds[0].colour = colour
-
-        kwargs: dict = {"embeds": embeds}
-        if total_pages(len(new_markets), per_page) > 1:
-            kwargs["view"] = MarketPaginationView(new_markets, per_page=per_page, title=title, colour=colour)
-        await interaction.followup.send(**kwargs)
+        # Post summary to the channel, then create thread on it
+        await interaction.followup.send("Fetching trending events...")
+        channel = interaction.channel
+        await _post_trending_thread(channel, events)
 
 
 async def setup(bot: PolymarketBot) -> None:

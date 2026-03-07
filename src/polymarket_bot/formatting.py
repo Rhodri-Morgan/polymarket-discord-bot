@@ -1,25 +1,31 @@
-"""Shared market embed formatting — used by both slash commands and scheduled posts."""
+"""Shared formatting — used by both slash commands and scheduled posts."""
 
 from __future__ import annotations
 
-import json
 import math
+from datetime import datetime, timezone
 
 import discord
 
-from polymarket_bot import market_url
 
-
-def _parse_json_field(value) -> list:
-    """Parse a JSON-encoded string or return the value if already a list."""
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return []
-    return []
+_CATEGORY_EMOJI: dict[str, str] = {
+    "politics": "\U0001f3db\ufe0f",
+    "sports": "\u26bd",
+    "crypto": "\U0001f4b0",
+    "finance": "\U0001f4b0",
+    "pop culture": "\U0001f3ac",
+    "science": "\U0001f52c",
+    "technology": "\U0001f4bb",
+    "ai": "\U0001f916",
+    "weather": "\U0001f324\ufe0f",
+    "world": "\U0001f30d",
+    "geopolitics": "\U0001f30d",
+    "business": "\U0001f3e2",
+    "health": "\U0001f3e5",
+    "entertainment": "\U0001f3ac",
+    "gaming": "\U0001f3ae",
+    "culture": "\U0001f3ad",
+}
 
 
 def _format_volume(volume) -> str:
@@ -35,42 +41,6 @@ def _format_volume(volume) -> str:
     return f"${v:,.0f}"
 
 
-def _outcome_emoji(name: str, pct: float) -> str:
-    """Pick an emoji for an outcome based on its name and probability."""
-    low = name.lower()
-    if low == "yes":
-        return "🟢" if pct >= 50 else "🔴"
-    if low == "no":
-        return "🔴" if pct >= 50 else "🟢"
-    # Multi-outcome: use bar chart style
-    if pct >= 40:
-        return "🥇"
-    if pct >= 20:
-        return "🥈"
-    return "🥉"
-
-
-def parse_outcomes(market: dict) -> list[tuple[str, float]]:
-    """Parse outcomes and their prices from a market dict.
-
-    Returns a list of (outcome_name, percentage) tuples.
-    """
-    outcomes = _parse_json_field(market.get("outcomes"))
-    prices = _parse_json_field(market.get("outcomePrices"))
-
-    if not outcomes or not prices or len(outcomes) != len(prices):
-        return []
-
-    result = []
-    for name, price in zip(outcomes, prices):
-        try:
-            pct = float(price) * 100
-        except (TypeError, ValueError):
-            pct = 0.0
-        result.append((name, round(pct, 1)))
-    return result
-
-
 def total_pages(num_items: int, per_page: int) -> int:
     """Calculate total number of pages."""
     if num_items == 0:
@@ -78,114 +48,90 @@ def total_pages(num_items: int, per_page: int) -> int:
     return math.ceil(num_items / per_page)
 
 
-def format_market_embed(market: dict) -> discord.Embed:
-    """Format a single market as an embed field-style card.
-
-    Returns an Embed with the question as the title, a URL link,
-    and fields for volume and outcome prices.
-    """
-    question = market.get("question", "Unknown Market")
-    link = market_url(market)
-    volume = market.get("volume", market.get("volumeNum", 0))
-
-    embed = discord.Embed(
-        title=f"📊 {question}",
-        url=link or None,
-        colour=discord.Colour.blue(),
-    )
-
-    # Outcomes line
-    outcomes = parse_outcomes(market)
-    if outcomes:
-        outcome_parts = []
-        for name, pct in outcomes:
-            emoji = _outcome_emoji(name, pct)
-            outcome_parts.append(f"{emoji} **{name}**: {pct:.0f}%")
-        embed.add_field(name="📈 Prices", value=" / ".join(outcome_parts), inline=True)
-
-    embed.add_field(name="💰 Volume", value=_format_volume(volume), inline=True)
-
-    if link:
-        embed.add_field(name="🔗 Link", value=f"[View on Polymarket]({link})", inline=False)
-
-    return embed
+def _event_category_emoji(event: dict) -> str:
+    """Return a category emoji for an event based on its tags."""
+    tags = event.get("tags") or []
+    for tag in tags:
+        if isinstance(tag, dict):
+            emoji = _CATEGORY_EMOJI.get(tag.get("label", "").lower())
+            if emoji:
+                return emoji
+    return "\U0001f4ca"
 
 
-def format_market_list(
-    markets: list[dict],
+def _format_age(event: dict) -> str:
+    """Return a human-readable age string like '3h' or '1d 6h'."""
+    now = datetime.now(timezone.utc)
+    for field in ("startDate", "createdAt"):
+        raw = event.get(field)
+        if raw:
+            try:
+                dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                delta = now - dt
+                hours = int(delta.total_seconds() / 3600)
+                if hours < 1:
+                    return "<1h"
+                if hours < 24:
+                    return f"{hours}h"
+                days = hours // 24
+                remaining_hours = hours % 24
+                if remaining_hours:
+                    return f"{days}d {remaining_hours}h"
+                return f"{days}d"
+            except (ValueError, TypeError):
+                continue
+    return "?"
+
+
+def format_trending_events(
+    events: list[dict],
     page: int = 0,
-    per_page: int = 5,
-    sort: str = "volume",
+    per_page: int = 10,
 ) -> list[discord.Embed]:
-    """Format a list of markets into paginated embeds.
+    """Format trending events as an embed for use in a thread message.
 
-    Args:
-        markets: List of market dicts from the Gamma API.
-        page: Zero-indexed page number.
-        per_page: Markets per page.
-        sort: Sort key — "volume" (default) sorts by volume descending.
-
-    Returns:
-        A list containing a single Embed with fields for each market on the page.
+    Each event is one field: linked title, volume, age, number of markets.
     """
-    if not markets:
+    if not events:
         embed = discord.Embed(
-            title="Markets",
-            description="No markets found.",
+            title="Trending Events",
+            description="No trending events found.",
             colour=discord.Colour.greyple(),
         )
         return [embed]
 
-    # Sort
-    if sort == "volume":
-        markets = sorted(markets, key=lambda m: _safe_float(m.get("volume", 0)), reverse=True)
-
-    # Paginate
-    total = len(markets)
+    total = len(events)
     start = page * per_page
     end = min(start + per_page, total)
-    page_markets = markets[start:end]
-
+    page_events = events[start:end]
     num_pages = total_pages(total, per_page)
-    embed = discord.Embed(
-        title="📊 Active Markets",
-        colour=discord.Colour.blue(),
-    )
 
-    for i, market in enumerate(page_markets, start + 1):
-        question = market.get("question", "Unknown")
-        link = market_url(market)
-        volume = market.get("volume", market.get("volumeNum", 0))
+    embed = discord.Embed(colour=discord.Colour.orange())
 
-        # Build compact field value
-        lines = []
+    for event in page_events:
+        event_title = event.get("title", "Unknown Event")
+        slug = event.get("slug", "")
+        cat_emoji = _event_category_emoji(event)
+        url = f"https://polymarket.com/event/{slug}" if slug else ""
+        volume = event.get("volume") or 0
+        num_markets = len(event.get("markets") or [])
+        age = _format_age(event)
 
-        outcomes = parse_outcomes(market)
-        if outcomes:
-            outcome_parts = []
-            for name, pct in outcomes:
-                emoji = _outcome_emoji(name, pct)
-                outcome_parts.append(f"{emoji} **{name}**: {pct:.0f}%")
-            lines.append(" / ".join(outcome_parts))
+        if url:
+            title_line = f"[{cat_emoji} {event_title}]({url})"
+        else:
+            title_line = f"{cat_emoji} {event_title}"
 
-        vol_line = f"💰 {_format_volume(volume)}"
-        if link:
-            vol_line += f" · [🔗 View]({link})"
-        lines.append(vol_line)
+        value = f"{title_line}\n**Volume**: {_format_volume(volume)} \u00b7 **Age**: {age} \u00b7 **Markets**: {num_markets}"
 
         embed.add_field(
-            name=f"{i}. {question}",
-            value="\n".join(lines),
+            name="\u200b",
+            value=value,
             inline=False,
         )
 
-    embed.set_footer(text=f"📄 Showing {start + 1}–{end} of {total} markets · Page {page + 1}/{num_pages}")
+    embed.set_footer(text=f"Showing {start + 1}\u2013{end} of {total} \u00b7 Page {page + 1}/{num_pages}")
 
     return [embed]
-
-
-def _safe_float(value) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0

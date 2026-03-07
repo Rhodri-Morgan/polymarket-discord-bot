@@ -1,7 +1,6 @@
 """Seed local dev data so scheduled features produce output immediately.
 
 Creates state files that simulate 24 hours of prior data:
-- seen_markets.json: all markets EXCEPT the 5 most recent (so they appear as "new")
 - volume_snapshots.json: a snapshot from ~24h ago with lower volumes (simulating growth)
 
 Usage:
@@ -9,8 +8,8 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -45,23 +44,6 @@ def fetch_active_markets(limit: int = 200) -> list[dict]:
     return all_markets[:limit]
 
 
-def seed_seen_markets(markets: list[dict], data_dir: Path, num_unseen: int = 5) -> None:
-    """Save seen_markets.json with the oldest markets, leaving the newest as 'unseen'."""
-    all_ids = [m["id"] for m in markets]
-
-    # Leave the last N markets out so they appear as "new" on first run
-    seen_ids = all_ids[:-num_unseen] if len(all_ids) > num_unseen else []
-
-    state = {
-        "seen_ids": seen_ids,
-        "last_check": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
-    }
-
-    path = data_dir / "seen_markets.json"
-    path.write_text(json.dumps(state, indent=2) + "\n")
-    print(f"  seen_markets.json: {len(seen_ids)} seen, {len(all_ids) - len(seen_ids)} will appear as new")
-
-
 def seed_volume_snapshots(markets: list[dict], data_dir: Path) -> None:
     """Save volume_snapshots.json with a 24h-ago snapshot at ~80% of current volumes."""
     now = datetime.now(timezone.utc)
@@ -83,8 +65,6 @@ def seed_volume_snapshots(markets: list[dict], data_dir: Path) -> None:
 
         new_snapshot[market_id] = {"question": question, "volume": volume}
         # Simulate 24h ago: volumes were ~70-90% of current (randomised per market)
-        import hashlib
-
         hash_val = int(hashlib.md5(market_id.encode()).hexdigest()[:8], 16)
         ratio = 0.7 + (hash_val % 20) / 100  # 0.70 to 0.89
         old_snapshot[market_id] = {"question": question, "volume": round(volume * ratio, 2)}
@@ -104,7 +84,6 @@ def seed_volume_snapshots(markets: list[dict], data_dir: Path) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Seed dev data for local testing")
     parser.add_argument("--data-dir", default="./data", help="Data directory (default: ./data)")
-    parser.add_argument("--num-unseen", type=int, default=5, help="Number of markets to leave as 'new' (default: 5)")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -115,7 +94,6 @@ def main():
     print(f"  Got {len(markets)} markets")
 
     print("Seeding state files...")
-    seed_seen_markets(markets, data_dir, num_unseen=args.num_unseen)
     seed_volume_snapshots(markets, data_dir)
 
     print(f"\nDone. Files written to {data_dir}/")
