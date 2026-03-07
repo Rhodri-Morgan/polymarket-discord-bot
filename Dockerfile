@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Install dependencies first (cache layer)
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen --no-install-project 2>/dev/null || uv sync --no-install-project
+
+# Copy source
+COPY . .
+RUN uv sync
+
+CMD ["uv", "run", "python", "-m", "polymarket_bot"]
