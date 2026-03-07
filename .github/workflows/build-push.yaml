@@ -1,0 +1,36 @@
+name: Build & Push to ECR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+run-name: Build and push image ${{ github.ref_name }}
+
+jobs:
+  polymarket-discord-bot:
+    runs-on: ubuntu-latest
+    name: Build and push polymarket-discord-bot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        id: build
+        uses: Rhodri-Morgan/github-workflows/build@bugfix/commit-sha-image-tag
+        with:
+          image-repo: polymarket-discord-bot
+          aws-region: eu-west-1
+          account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+          role-arn: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Push
+        uses: Rhodri-Morgan/github-workflows/push@bugfix/commit-sha-image-tag
+        with:
+          image-repo: polymarket-discord-bot
+          image-tag: ${{ steps.build.outputs.image-tag }}
+          aws-region: eu-west-1
+          account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+          role-arn: ${{ secrets.AWS_ROLE_ARN }}
