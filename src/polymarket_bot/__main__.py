@@ -7,11 +7,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 from polymarket_bot.bot import PolymarketBot
 from polymarket_bot.config import settings
+from polymarket_bot.health import start_health_server
 
 
 async def main() -> None:
-    async with PolymarketBot() as bot:
-        await bot.start(settings.discord_bot_token)
+    health_runner = await start_health_server()
+    try:
+        async with PolymarketBot() as bot:
+            await bot.start(settings.discord_bot_token)
+    finally:
+        await health_runner.cleanup()
 
 
 if __name__ == "__main__":
