@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build and run tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        id: build
+        uses: Rhodri-Morgan/github-workflows/build@v1
+        with:
+          image-repo: polymarket-discord-bot
+          aws-region: eu-west-1
+          account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+          role-arn: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Run tests
+        run: docker run --rm local/polymarket-discord-bot:${{ steps.build.outputs.image-tag }} uv run pytest
