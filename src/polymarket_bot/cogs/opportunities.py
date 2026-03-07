@@ -12,7 +12,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from polymarket_bot import market_url
+from polymarket_bot.formatting import format_market_list
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
@@ -208,21 +208,22 @@ async def scan_opportunities(
 # ---------------------------------------------------------------------------
 
 
-def _format_opportunities(opportunities: list[dict]) -> str:
-    """Format opportunity list as plain text for Discord."""
+def _format_opportunities_embeds(opportunities: list[dict]) -> list[discord.Embed]:
+    """Format opportunities as embeds. Returns a list with one embed."""
     if not opportunities:
-        return "No opportunities found this scan."
+        embed = discord.Embed(
+            title="Opportunity Scan",
+            description="No opportunities found this scan.",
+            colour=discord.Colour.greyple(),
+        )
+        return [embed]
 
-    lines = [f"Found {len(opportunities)} opportunity/opportunities:\n"]
-    for m in opportunities:
-        question = m.get("question", "Unknown")
-        volume = _get_volume(m)
-        link = market_url(m)
-        lines.append(f"  {question}")
-        lines.append(f"    Volume: ${volume}  {link}")
-        lines.append("")
-
-    return "\n".join(lines)
+    return format_market_list(
+        opportunities,
+        page=0,
+        per_page=min(len(opportunities), 10),
+        sort="volume",
+    )
 
 
 class OpportunitiesCog(commands.Cog, name="Opportunities"):
@@ -267,8 +268,10 @@ class OpportunitiesCog(commands.Cog, name="Opportunities"):
         )
 
         if opportunities:
-            msg = _format_opportunities(opportunities)
-            await channel.send(msg)  # type: ignore[union-attr]
+            embeds = _format_opportunities_embeds(opportunities)
+            embeds[0].title = f"Opportunities ({len(opportunities)} found)"
+            embeds[0].colour = discord.Colour.purple()
+            await channel.send(embeds=embeds)
 
     @scan_loop.before_loop
     async def before_scan_loop(self) -> None:
@@ -293,8 +296,10 @@ class OpportunitiesCog(commands.Cog, name="Opportunities"):
             min_spread=self.min_spread,
         )
 
-        msg = _format_opportunities(opportunities)
-        await interaction.followup.send(msg)
+        embeds = _format_opportunities_embeds(opportunities)
+        embeds[0].title = f"Opportunities ({len(opportunities)} found)"
+        embeds[0].colour = discord.Colour.purple()
+        await interaction.followup.send(embeds=embeds)
 
 
 async def setup(bot: PolymarketBot) -> None:

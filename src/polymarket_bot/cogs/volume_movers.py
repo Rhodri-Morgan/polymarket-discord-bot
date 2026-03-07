@@ -191,6 +191,48 @@ def format_report(report: dict) -> str:
     return "\n".join(lines)
 
 
+def format_report_embeds(report: dict) -> list[discord.Embed]:
+    """Format a volume movers report as Discord embeds."""
+    from polymarket_bot.formatting import _format_volume
+
+    embeds = []
+
+    # Absolute volume increase embed
+    abs_embed = discord.Embed(
+        title="Volume Movers — Top by $ Increase (24h)",
+        colour=discord.Colour.gold(),
+    )
+    for i, entry in enumerate(report["absolute"], 1):
+        abs_change = entry["abs_change"]
+        new_vol = entry["new_volume"]
+        question = entry["question"]
+        abs_embed.add_field(
+            name=f"{i}. {question}",
+            value=f"+{_format_volume(abs_change)} · Now {_format_volume(new_vol)}",
+            inline=False,
+        )
+    embeds.append(abs_embed)
+
+    # Percentage increase embed
+    pct_embed = discord.Embed(
+        title="Volume Movers — Top by % Increase (24h)",
+        colour=discord.Colour.orange(),
+    )
+    for i, entry in enumerate(report["percentage"], 1):
+        pct = entry["pct_change"]
+        new_vol = entry["new_volume"]
+        question = entry["question"]
+        pct_str = "new" if pct == float("inf") else f"+{pct:.1f}%"
+        pct_embed.add_field(
+            name=f"{i}. {question}",
+            value=f"{pct_str} · Now {_format_volume(new_vol)}",
+            inline=False,
+        )
+    embeds.append(pct_embed)
+
+    return embeds
+
+
 # ---------------------------------------------------------------------------
 # Discord Cog
 # ---------------------------------------------------------------------------
@@ -249,11 +291,9 @@ class VolumeMoversCog(commands.Cog, name="Volume Movers"):
             log.warning("Could not find channel %s", self.report_channel_id)
             return
 
-        text = format_report(report)
-        # Discord has a 2000 char limit; truncate if needed
-        if len(text) > 2000:
-            text = text[:1997] + "..."
-        await channel.send(text)
+        embeds = format_report_embeds(report)
+        for embed in embeds:
+            await channel.send(embed=embed)
         log.info("Volume movers report posted to channel %s", self.report_channel_id)
 
     @app_commands.command(
@@ -268,10 +308,8 @@ class VolumeMoversCog(commands.Cog, name="Volume Movers"):
             await interaction.followup.send("Not enough data yet — need at least two snapshots ~24h apart.")
             return
 
-        text = format_report(report)
-        if len(text) > 2000:
-            text = text[:1997] + "..."
-        await interaction.followup.send(text)
+        embeds = format_report_embeds(report)
+        await interaction.followup.send(embeds=embeds)
 
 
 async def setup(bot: PolymarketBot) -> None:

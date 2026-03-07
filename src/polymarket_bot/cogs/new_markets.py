@@ -12,6 +12,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from polymarket_bot import market_url, store
+from polymarket_bot.formatting import format_market_embed, format_market_list
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
@@ -127,13 +128,15 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
             return
 
         new_markets = await check_new_markets(self.session, self.gamma_url)
+        if not new_markets:
+            return
+
+        # Send each new market as a rich embed
         for market in new_markets:
-            question = market.get("question", "Unknown")
-            link = market_url(market)
-            msg = f"**New Market:** {question}"
-            if link:
-                msg += f"\n{link}"
-            await channel.send(msg)
+            embed = format_market_embed(market)
+            embed.title = f"New Market: {embed.title}"
+            embed.colour = discord.Colour.green()
+            await channel.send(embed=embed)
 
     @app_commands.command(name="new-markets", description="Manually check for new Polymarket markets")
     async def new_markets_cmd(self, interaction: discord.Interaction) -> None:
@@ -144,18 +147,13 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
 
         new_markets = await check_new_markets(self.session, self.gamma_url)
         if not new_markets:
-            await interaction.followup.send("No new markets found.")
+            await interaction.followup.send("No new markets found since last check.")
             return
 
-        lines = []
-        for market in new_markets[:10]:
-            question = market.get("question", "Unknown")
-            link = market_url(market)
-            entry = f"**{question}**"
-            if link:
-                entry += f"\n{link}"
-            lines.append(entry)
-        await interaction.followup.send("\n\n".join(lines))
+        embeds = format_market_list(new_markets, page=0, per_page=10)
+        embeds[0].title = "New Markets"
+        embeds[0].colour = discord.Colour.green()
+        await interaction.followup.send(embeds=embeds)
 
 
 async def setup(bot: PolymarketBot) -> None:
