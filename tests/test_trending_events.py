@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from polymarket_bot.cogs.new_markets import (
+from polymarket_bot.cogs.trending_events import (
     EXCLUDED_TAGS,
     _has_excluded_tag,
     _volume_velocity,

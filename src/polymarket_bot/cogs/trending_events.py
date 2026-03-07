@@ -177,7 +177,7 @@ async def _post_trending_thread(
         await thread.send(embeds=embeds)
 
 
-class NewMarketsCog(commands.Cog, name="NewMarkets"):
+class TrendingCog(commands.Cog, name="Trending"):
     """Surfaces trending new Polymarket events."""
 
     def __init__(self, bot: PolymarketBot) -> None:
@@ -240,4 +240,4 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
 
 
 async def setup(bot: PolymarketBot) -> None:
-    await bot.add_cog(NewMarketsCog(bot))
+    await bot.add_cog(TrendingCog(bot))

@@ -35,7 +35,7 @@ All cog output that produces lists of data (e.g. trending events, future feature
 3. Post data in batches as separate messages inside the thread using `thread.send(embeds=...)`
 4. For slash commands: send a brief followup to the interaction, then use `interaction.channel` to post the summary + thread
 
-**Reference implementation:** `src/polymarket_bot/cogs/new_markets.py` — `_post_trending_thread()`
+**Reference implementation:** `src/polymarket_bot/cogs/trending_events.py` — `_post_trending_thread()`
 
 ## Development
 
@@ -94,6 +94,6 @@ This project follows **strict TDD**. For every new feature:
 
 Tests live in `tests/` and mirror the source structure:
 
-- **Cog logic tests** — filtering, ranking, velocity calculations (e.g. `test_new_markets.py`)
+- **Cog logic tests** — filtering, ranking, velocity calculations (e.g. `test_trending_events.py`)
 - **Formatting tests** — embed output, volume formatting, age display (e.g. `test_formatting.py`)
 - **API integration tests** — real HTTP calls to Polymarket APIs, verify data shapes
