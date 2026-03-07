@@ -188,7 +188,7 @@ class TrendingCog(commands.Cog, name="Trending"):
         from polymarket_bot.config import settings
 
         self.gamma_url = settings.gamma_api_url
-        self.alert_channel_id = settings.alert_channel_id
+        self.channel_id = settings.discord_channel_id
         self.session = aiohttp.ClientSession()
         self.check_loop.start()
 
@@ -206,12 +206,12 @@ class TrendingCog(commands.Cog, name="Trending"):
         await self.bot.wait_until_ready()
 
     async def _run_check(self) -> None:
-        if not self.session or not self.alert_channel_id:
+        if not self.session or not self.channel_id:
             return
 
-        channel = self.bot.get_channel(self.alert_channel_id)
+        channel = self.bot.get_channel(self.channel_id)
         if channel is None:
-            log.warning("Alert channel %s not found.", self.alert_channel_id)
+            log.warning("Channel %s not found.", self.channel_id)
             return
 
         events = await fetch_trending_events(self.session, self.gamma_url)
@@ -221,7 +221,7 @@ class TrendingCog(commands.Cog, name="Trending"):
         log.info("Posting %d trending events to alert channel.", len(events))
         await _post_trending_thread(channel, events)
 
-    @app_commands.command(name="trending", description="Top trending new Polymarket events (last 48h)")
+    @app_commands.command(name="trending", description=f"Top trending new Polymarket events (last {LOOKBACK_HOURS}h)")
     async def trending_cmd(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         if not self.session:
