@@ -4,10 +4,6 @@
 
 A Discord bot that surfaces live Polymarket prediction-market data via slash commands and scheduled alerts. Built with Python 3.11+ and discord.py v2.
 
-For full system design, deployment model, cold start behaviour, persistence, and test strategy, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
-
-For planned features and implementation details, see **[docs/features.md](docs/features.md)**.
-
 ## Key Patterns
 
 - **Docker-first**: all development and testing should be done through Docker. Use `make docker-*` targets for building, running, testing, and seeding data. Local targets exist as a fallback but Docker is the preferred workflow.
