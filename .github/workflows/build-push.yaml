@@ -7,7 +7,7 @@ permissions:
   id-token: write
   contents: read
 
-run-name: Build and push image ${{ github.ref_name }}
+run-name: Build and push image ${{ github.ref_name }} (${{ github.sha }})
 
 jobs:
   polymarket-discord-bot:
