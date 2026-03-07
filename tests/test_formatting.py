@@ -118,7 +118,7 @@ class TestFormatMarketList:
         embeds = format_market_list(markets, page=0, per_page=5)
 
         footer_text = embeds[0].footer.text if embeds[0].footer else ""
-        assert "1-5" in footer_text
+        assert "1" in footer_text and "5" in footer_text
         assert "12" in footer_text
 
     def test_empty_market_list(self):

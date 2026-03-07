@@ -134,7 +134,7 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
         # Send each new market as a rich embed
         for market in new_markets:
             embed = format_market_embed(market)
-            embed.title = f"New Market: {embed.title}"
+            embed.title = f"🆕 {market.get('question', 'New Market')}"
             embed.colour = discord.Colour.green()
             await channel.send(embed=embed)
 
@@ -151,7 +151,7 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
             return
 
         embeds = format_market_list(new_markets, page=0, per_page=10)
-        embeds[0].title = "New Markets"
+        embeds[0].title = "🆕 New Markets"
         embeds[0].colour = discord.Colour.green()
         await interaction.followup.send(embeds=embeds)
 

@@ -35,6 +35,21 @@ def _format_volume(volume) -> str:
     return f"${v:,.0f}"
 
 
+def _outcome_emoji(name: str, pct: float) -> str:
+    """Pick an emoji for an outcome based on its name and probability."""
+    low = name.lower()
+    if low == "yes":
+        return "🟢" if pct >= 50 else "🔴"
+    if low == "no":
+        return "🔴" if pct >= 50 else "🟢"
+    # Multi-outcome: use bar chart style
+    if pct >= 40:
+        return "🥇"
+    if pct >= 20:
+        return "🥈"
+    return "🥉"
+
+
 def parse_outcomes(market: dict) -> list[tuple[str, float]]:
     """Parse outcomes and their prices from a market dict.
 
@@ -74,7 +89,7 @@ def format_market_embed(market: dict) -> discord.Embed:
     volume = market.get("volume", market.get("volumeNum", 0))
 
     embed = discord.Embed(
-        title=question,
+        title=f"📊 {question}",
         url=link or None,
         colour=discord.Colour.blue(),
     )
@@ -84,13 +99,14 @@ def format_market_embed(market: dict) -> discord.Embed:
     if outcomes:
         outcome_parts = []
         for name, pct in outcomes:
-            outcome_parts.append(f"**{name}**: {pct:.0f}%")
-        embed.add_field(name="Prices", value=" / ".join(outcome_parts), inline=True)
+            emoji = _outcome_emoji(name, pct)
+            outcome_parts.append(f"{emoji} **{name}**: {pct:.0f}%")
+        embed.add_field(name="📈 Prices", value=" / ".join(outcome_parts), inline=True)
 
-    embed.add_field(name="Volume", value=_format_volume(volume), inline=True)
+    embed.add_field(name="💰 Volume", value=_format_volume(volume), inline=True)
 
     if link:
-        embed.add_field(name="Link", value=f"[View on Polymarket]({link})", inline=False)
+        embed.add_field(name="🔗 Link", value=f"[View on Polymarket]({link})", inline=False)
 
     return embed
 
@@ -132,35 +148,38 @@ def format_market_list(
 
     num_pages = total_pages(total, per_page)
     embed = discord.Embed(
-        title="Active Markets",
+        title="📊 Active Markets",
         colour=discord.Colour.blue(),
     )
 
-    for market in page_markets:
+    for i, market in enumerate(page_markets, start + 1):
         question = market.get("question", "Unknown")
         link = market_url(market)
         volume = market.get("volume", market.get("volumeNum", 0))
 
         # Build compact field value
-        parts = []
+        lines = []
 
         outcomes = parse_outcomes(market)
         if outcomes:
-            outcome_str = " / ".join(f"**{name}**: {pct:.0f}%" for name, pct in outcomes)
-            parts.append(outcome_str)
+            outcome_parts = []
+            for name, pct in outcomes:
+                emoji = _outcome_emoji(name, pct)
+                outcome_parts.append(f"{emoji} **{name}**: {pct:.0f}%")
+            lines.append(" / ".join(outcome_parts))
 
-        parts.append(f"Vol: {_format_volume(volume)}")
-
+        vol_line = f"💰 {_format_volume(volume)}"
         if link:
-            parts.append(f"[View]({link})")
+            vol_line += f" · [🔗 View]({link})"
+        lines.append(vol_line)
 
         embed.add_field(
-            name=question,
-            value=" · ".join(parts),
+            name=f"{i}. {question}",
+            value="\n".join(lines),
             inline=False,
         )
 
-    embed.set_footer(text=f"Showing {start + 1}-{end} of {total} markets · Page {page + 1}/{num_pages}")
+    embed.set_footer(text=f"📄 Showing {start + 1}–{end} of {total} markets · Page {page + 1}/{num_pages}")
 
     return [embed]
 

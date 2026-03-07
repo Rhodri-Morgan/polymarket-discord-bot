@@ -12,7 +12,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from polymarket_bot.formatting import format_market_list
+from polymarket_bot.formatting import format_market_list, total_pages
+from polymarket_bot.views import MarketPaginationView
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
@@ -269,7 +270,7 @@ class OpportunitiesCog(commands.Cog, name="Opportunities"):
 
         if opportunities:
             embeds = _format_opportunities_embeds(opportunities)
-            embeds[0].title = f"Opportunities ({len(opportunities)} found)"
+            embeds[0].title = f"🔍 Opportunities ({len(opportunities)} found)"
             embeds[0].colour = discord.Colour.purple()
             await channel.send(embeds=embeds)
 
@@ -296,10 +297,17 @@ class OpportunitiesCog(commands.Cog, name="Opportunities"):
             min_spread=self.min_spread,
         )
 
-        embeds = _format_opportunities_embeds(opportunities)
-        embeds[0].title = f"Opportunities ({len(opportunities)} found)"
-        embeds[0].colour = discord.Colour.purple()
-        await interaction.followup.send(embeds=embeds)
+        per_page = 5
+        title = f"🔍 Opportunities ({len(opportunities)} found)"
+        colour = discord.Colour.purple()
+
+        embeds = format_market_list(opportunities, page=0, per_page=per_page)
+        embeds[0].title = title
+        embeds[0].colour = colour
+
+        num_pages = total_pages(len(opportunities), per_page)
+        view = MarketPaginationView(opportunities, per_page=per_page, title=title, colour=colour) if num_pages > 1 else None
+        await interaction.followup.send(embeds=embeds, view=view)
 
 
 async def setup(bot: PolymarketBot) -> None:

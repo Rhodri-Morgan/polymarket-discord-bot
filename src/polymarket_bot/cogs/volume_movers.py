@@ -199,32 +199,35 @@ def format_report_embeds(report: dict) -> list[discord.Embed]:
 
     # Absolute volume increase embed
     abs_embed = discord.Embed(
-        title="Volume Movers — Top by $ Increase (24h)",
+        title="💰 Volume Movers — Top by $ Increase (24h)",
         colour=discord.Colour.gold(),
     )
-    for i, entry in enumerate(report["absolute"], 1):
+    medals = ["🥇", "🥈", "🥉"] + ["📊"] * 7
+    for i, entry in enumerate(report["absolute"][:10]):
         abs_change = entry["abs_change"]
         new_vol = entry["new_volume"]
         question = entry["question"]
+        medal = medals[i] if i < len(medals) else "📊"
         abs_embed.add_field(
-            name=f"{i}. {question}",
-            value=f"+{_format_volume(abs_change)} · Now {_format_volume(new_vol)}",
+            name=f"{medal} {question}",
+            value=f"📈 +{_format_volume(abs_change)} · Now {_format_volume(new_vol)}",
             inline=False,
         )
     embeds.append(abs_embed)
 
     # Percentage increase embed
     pct_embed = discord.Embed(
-        title="Volume Movers — Top by % Increase (24h)",
+        title="🚀 Volume Movers — Top by % Increase (24h)",
         colour=discord.Colour.orange(),
     )
-    for i, entry in enumerate(report["percentage"], 1):
+    for i, entry in enumerate(report["percentage"][:10]):
         pct = entry["pct_change"]
         new_vol = entry["new_volume"]
         question = entry["question"]
-        pct_str = "new" if pct == float("inf") else f"+{pct:.1f}%"
+        medal = medals[i] if i < len(medals) else "📊"
+        pct_str = "🆕 new" if pct == float("inf") else f"📈 +{pct:.1f}%"
         pct_embed.add_field(
-            name=f"{i}. {question}",
+            name=f"{medal} {question}",
             value=f"{pct_str} · Now {_format_volume(new_vol)}",
             inline=False,
         )
