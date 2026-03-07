@@ -1,190 +1,199 @@
-"""Tests for the shared market embed formatter."""
+"""Tests for shared formatting utilities — trending events display."""
 
-import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+import discord
 import pytest
 
-from polymarket_bot import market_url
+from polymarket_bot.formatting import (
+    _event_category_emoji,
+    _format_age,
+    _format_volume,
+    format_trending_events,
+    total_pages,
+)
 
 
-def _make_market(
+def _make_event(
     *,
-    id_: str = "123",
-    question: str = "Will it rain?",
-    slug: str = "will-it-rain",
-    event_slug: str = "will-it-rain",
-    volume: str = "50000.5",
-    outcome_prices: list[str] | None = None,
-    outcomes: list[str] | None = None,
+    title: str = "Test Event",
+    slug: str = "test-event",
+    volume: float = 50000,
+    tags: list[str] | None = None,
+    age_hours: float = 12,
+    num_markets: int = 2,
 ) -> dict:
-    """Build a mock market dict matching the real Gamma API shape."""
-    if outcome_prices is None:
-        outcome_prices = ["0.65", "0.35"]
-    if outcomes is None:
-        outcomes = ["Yes", "No"]
+    created = (datetime.now(timezone.utc) - timedelta(hours=age_hours)).isoformat()
+    tag_dicts = [{"label": t} for t in (tags or ["Politics"])]
     return {
-        "id": id_,
-        "question": question,
+        "title": title,
         "slug": slug,
         "volume": volume,
-        "volumeNum": float(volume),
-        "outcomePrices": json.dumps(outcome_prices),
-        "outcomes": json.dumps(outcomes),
-        "events": [{"slug": event_slug}],
-        "clobTokenIds": '["tok1", "tok2"]',
-        "startDate": "2026-03-07T12:00:00Z",
+        "startDate": created,
+        "createdAt": created,
+        "tags": tag_dicts,
+        "markets": [{"id": f"m{i}"} for i in range(num_markets)],
     }
 
 
-class TestFormatMarketEmbed:
-    """Test the embed formatting for a single market."""
-
-    def test_embed_contains_question_as_title_or_field(self):
-        from polymarket_bot.formatting import format_market_embed
-
-        market = _make_market(question="Will BTC hit 100k?")
-        embed = format_market_embed(market)
-
-        # Question should appear somewhere in the embed
-        text = (embed.title or "") + "".join(f.name + f.value for f in embed.fields)
-        assert "Will BTC hit 100k?" in text
-
-    def test_embed_contains_volume(self):
-        from polymarket_bot.formatting import format_market_embed
-
-        market = _make_market(volume="1234567.89")
-        embed = format_market_embed(market)
-
-        text = "".join(f.value for f in embed.fields) + (embed.description or "")
-        # Should format volume with $ and commas or similar
-        assert "$" in text
-        assert "1" in text  # at least part of the volume number
-
-    def test_embed_contains_yes_no_percentages(self):
-        from polymarket_bot.formatting import format_market_embed
-
-        market = _make_market(outcome_prices=["0.72", "0.28"])
-        embed = format_market_embed(market)
-
-        text = "".join(f.value for f in embed.fields) + (embed.description or "")
-        assert "72%" in text
-        assert "28%" in text
-
-    def test_embed_contains_market_link(self):
-        from polymarket_bot.formatting import format_market_embed
-
-        market = _make_market(slug="btc-100k", event_slug="btc-100k")
-        embed = format_market_embed(market)
-
-        all_text = (embed.title or "") + (embed.description or "") + (embed.url or "")
-        all_text += "".join(f.value for f in embed.fields)
-        assert "polymarket.com" in all_text
+# ---------------------------------------------------------------------------
+# _format_volume
+# ---------------------------------------------------------------------------
 
 
-class TestFormatMarketList:
-    """Test formatting a list of markets into paginated embeds."""
+class TestFormatVolume:
+    def test_millions(self):
+        assert _format_volume(2_500_000) == "$2.5M"
 
-    def test_returns_list_of_embeds(self):
-        from polymarket_bot.formatting import format_market_list
+    def test_thousands(self):
+        assert _format_volume(45_000) == "$45.0K"
 
-        markets = [_make_market(id_=str(i), question=f"Market {i}?") for i in range(3)]
-        embeds = format_market_list(markets, page=0, per_page=5)
-        assert isinstance(embeds, list)
-        assert len(embeds) == 1  # all fit on one page
+    def test_small(self):
+        assert _format_volume(999) == "$999"
 
-    def test_pagination_limits_results(self):
-        from polymarket_bot.formatting import format_market_list
+    def test_zero(self):
+        assert _format_volume(0) == "$0"
 
-        markets = [_make_market(id_=str(i), question=f"Market {i}?") for i in range(12)]
-        page0 = format_market_list(markets, page=0, per_page=5)
-        page1 = format_market_list(markets, page=1, per_page=5)
-        page2 = format_market_list(markets, page=2, per_page=5)
+    def test_string_input(self):
+        assert _format_volume("1500000") == "$1.5M"
 
-        # Page 0 and 1 have 5 markets each, page 2 has 2
-        assert len(page0) == 1  # single embed with 5 fields
-        assert len(page1) == 1
-        assert len(page2) == 1
+    def test_invalid_input(self):
+        assert _format_volume("not-a-number") == "$?"
 
-        # Check field counts reflect pagination
-        assert len(page0[0].fields) == 5
-        assert len(page1[0].fields) == 5
-        assert len(page2[0].fields) == 2
-
-    def test_page_footer_shows_position(self):
-        from polymarket_bot.formatting import format_market_list
-
-        markets = [_make_market(id_=str(i), question=f"Market {i}?") for i in range(12)]
-        embeds = format_market_list(markets, page=0, per_page=5)
-
-        footer_text = embeds[0].footer.text if embeds[0].footer else ""
-        assert "1" in footer_text and "5" in footer_text
-        assert "12" in footer_text
-
-    def test_empty_market_list(self):
-        from polymarket_bot.formatting import format_market_list
-
-        embeds = format_market_list([], page=0, per_page=5)
-        assert len(embeds) == 1
-        assert "No markets" in (embeds[0].description or "")
-
-    def test_markets_sorted_by_volume_descending(self):
-        from polymarket_bot.formatting import format_market_list
-
-        markets = [
-            _make_market(id_="low", question="Low vol?", volume="1000"),
-            _make_market(id_="high", question="High vol?", volume="999999"),
-            _make_market(id_="mid", question="Mid vol?", volume="50000"),
-        ]
-        embeds = format_market_list(markets, page=0, per_page=5, sort="volume")
-
-        # First field should be the highest volume market
-        assert "High vol?" in embeds[0].fields[0].name
-        assert "Low vol?" in embeds[0].fields[2].name
+    def test_none_input(self):
+        assert _format_volume(None) == "$?"
 
 
-class TestParseOutcomes:
-    """Test parsing of outcome prices from various API formats."""
-
-    def test_json_string_prices(self):
-        from polymarket_bot.formatting import parse_outcomes
-
-        market = _make_market(
-            outcomes=["Yes", "No"],
-            outcome_prices=["0.65", "0.35"],
-        )
-        result = parse_outcomes(market)
-        assert result == [("Yes", 65.0), ("No", 35.0)]
-
-    def test_missing_prices_returns_empty(self):
-        from polymarket_bot.formatting import parse_outcomes
-
-        market = {"outcomes": '["Yes", "No"]'}
-        result = parse_outcomes(market)
-        assert result == []
-
-    def test_multi_outcome_market(self):
-        from polymarket_bot.formatting import parse_outcomes
-
-        market = {
-            "outcomes": json.dumps(["Trump", "Biden", "DeSantis"]),
-            "outcomePrices": json.dumps(["0.45", "0.30", "0.25"]),
-        }
-        result = parse_outcomes(market)
-        assert len(result) == 3
-        assert result[0] == ("Trump", 45.0)
-        assert result[1] == ("Biden", 30.0)
-        assert result[2] == ("DeSantis", 25.0)
+# ---------------------------------------------------------------------------
+# total_pages
+# ---------------------------------------------------------------------------
 
 
 class TestTotalPages:
-    """Test page count calculation."""
-
-    def test_total_pages(self):
-        from polymarket_bot.formatting import total_pages
-
+    def test_zero_items(self):
         assert total_pages(0, 5) == 0
-        assert total_pages(1, 5) == 1
-        assert total_pages(5, 5) == 1
-        assert total_pages(6, 5) == 2
-        assert total_pages(12, 5) == 3
+
+    def test_exact_fit(self):
+        assert total_pages(10, 5) == 2
+
+    def test_remainder(self):
+        assert total_pages(11, 5) == 3
+
+    def test_single_item(self):
+        assert total_pages(1, 10) == 1
+
+
+# ---------------------------------------------------------------------------
+# _event_category_emoji
+# ---------------------------------------------------------------------------
+
+
+class TestEventCategoryEmoji:
+    def test_politics(self):
+        event = _make_event(tags=["Politics"])
+        assert _event_category_emoji(event) == "\U0001f3db\ufe0f"
+
+    def test_sports(self):
+        event = _make_event(tags=["Sports"])
+        assert _event_category_emoji(event) == "\u26bd"
+
+    def test_unknown_tag_returns_default(self):
+        event = _make_event(tags=["SomeRandomTag"])
+        assert _event_category_emoji(event) == "\U0001f4ca"
+
+    def test_no_tags(self):
+        event = {"tags": []}
+        assert _event_category_emoji(event) == "\U0001f4ca"
+
+    def test_missing_tags_key(self):
+        event = {}
+        assert _event_category_emoji(event) == "\U0001f4ca"
+
+
+# ---------------------------------------------------------------------------
+# _format_age
+# ---------------------------------------------------------------------------
+
+
+class TestFormatAge:
+    def test_less_than_one_hour(self):
+        event = _make_event(age_hours=0.25)
+        assert _format_age(event) == "<1h"
+
+    def test_hours_only(self):
+        event = _make_event(age_hours=5)
+        assert _format_age(event) == "5h"
+
+    def test_days_and_hours(self):
+        event = _make_event(age_hours=30)
+        assert _format_age(event) == "1d 6h"
+
+    def test_exact_days(self):
+        event = _make_event(age_hours=48)
+        assert _format_age(event) == "2d"
+
+    def test_missing_dates(self):
+        event = {"title": "No dates"}
+        assert _format_age(event) == "?"
+
+
+# ---------------------------------------------------------------------------
+# format_trending_events
+# ---------------------------------------------------------------------------
+
+
+class TestFormatTrendingEvents:
+    def test_empty_list(self):
+        embeds = format_trending_events([])
+        assert len(embeds) == 1
+        assert "No trending events" in (embeds[0].description or "")
+
+    def test_single_event(self):
+        events = [_make_event(title="Hot Event", slug="hot-event")]
+        embeds = format_trending_events(events, page=0, per_page=10)
+        assert len(embeds) == 1
+        assert len(embeds[0].fields) == 1
+        assert "Hot Event" in embeds[0].fields[0].value
+        assert "polymarket.com" in embeds[0].fields[0].value
+
+    def test_pagination_footer(self):
+        events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(25)]
+        embeds = format_trending_events(events, page=0, per_page=10)
+        footer = embeds[0].footer.text if embeds[0].footer else ""
+        assert "1" in footer
+        assert "10" in footer
+        assert "25" in footer
+
+    def test_page_two(self):
+        events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(25)]
+        embeds = format_trending_events(events, page=1, per_page=10)
+        assert len(embeds[0].fields) == 10
+        footer = embeds[0].footer.text if embeds[0].footer else ""
+        assert "11" in footer
+        assert "20" in footer
+
+    def test_last_partial_page(self):
+        events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(23)]
+        embeds = format_trending_events(events, page=2, per_page=10)
+        assert len(embeds[0].fields) == 3
+
+    def test_event_without_slug(self):
+        events = [_make_event(title="No Slug")]
+        events[0]["slug"] = ""
+        embeds = format_trending_events(events)
+        # Should still render without a link
+        assert "No Slug" in embeds[0].fields[0].value
+        assert "polymarket.com" not in embeds[0].fields[0].value
+
+    def test_volume_and_age_in_field(self):
+        events = [_make_event(volume=1_500_000, age_hours=6)]
+        embeds = format_trending_events(events)
+        value = embeds[0].fields[0].value
+        assert "$1.5M" in value
+        assert "6h" in value
+
+    def test_market_count_in_field(self):
+        events = [_make_event(num_markets=5)]
+        embeds = format_trending_events(events)
+        value = embeds[0].fields[0].value
+        assert "5" in value

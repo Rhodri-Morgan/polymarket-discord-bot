@@ -14,10 +14,28 @@ For planned features and implementation details, see **[docs/features.md](docs/f
 - **Cog-based**: each feature area is a `commands.Cog` under `src/polymarket_bot/cogs/`. The bot auto-discovers and loads any `.py` file in that directory (excluding `_`-prefixed files).
 - **Slash commands only**: all user-facing commands use `app_commands` (not prefix commands). The `!` prefix is configured but reserved for admin/debug use.
 - **Async HTTP**: each cog manages its own `aiohttp.ClientSession` via `cog_load` / `cog_unload`.
-- **Scheduled tasks**: `discord.ext.tasks` loops for background alerts. See ARCHITECTURE.md for the shared cog pattern.
-- **Cold start bootstrap**: scheduled cogs silently seed state files on first run — no empty cycle. See ARCHITECTURE.md § Cold Start.
-- **JSON persistence**: state files on EBS-backed `/app/data`. Atomic writes, self-pruning. See ARCHITECTURE.md § Persistence Layer.
+- **Scheduled tasks**: `discord.ext.tasks` loops for background alerts.
+- **Stateless queries**: prefer stateless API queries (e.g. `start_date_min` filters) over local state files. Only persist state when absolutely necessary.
 - **Config**: all secrets and tunables come from environment variables (see `.env.example`). Never hardcode tokens or URLs.
+
+### Thread-Based Output (standard pattern)
+
+All cog output that produces lists of data (e.g. trending events, future features) **must use Discord threads**, not paginated button views. This is the established pattern for the project.
+
+**Why threads over pagination buttons:**
+
+- Button interactions expire after ~5 minutes — useless for scheduled/cron posts
+- Threads are persistent, scrollable, and don't expire
+- No need for `discord.ui.View` state management
+
+**How to implement:**
+
+1. Post a summary embed to the channel via `channel.send()` (not `interaction.followup.send()`, which returns a `WebhookMessage` that can't create threads)
+2. Create a thread on that summary message: `summary.create_thread(name="...")`
+3. Post data in batches as separate messages inside the thread using `thread.send(embeds=...)`
+4. For slash commands: send a brief followup to the interaction, then use `interaction.channel` to post the summary + thread
+
+**Reference implementation:** `src/polymarket_bot/cogs/new_markets.py` — `_post_trending_thread()`
 
 ## Development
 
@@ -74,9 +92,8 @@ This project follows **strict TDD**. For every new feature:
 
 **Mock data must match real API responses.** All tests involving the Polymarket API or any other external API must inspect the real API structure (via curl or official documentation) to ensure mocked data and assertions accurately reflect the API's actual response format and data types. This prevents drift between mocks and real API responses. For example, the Gamma API returns `volume` as a string, `clobTokenIds` as a JSON-encoded string, and `outcomes` as a JSON-encoded string — mocks must replicate this.
 
-Tests live in `tests/` and mirror the source structure. See ARCHITECTURE.md § Test Strategy for the full breakdown of test categories:
+Tests live in `tests/` and mirror the source structure:
 
+- **Cog logic tests** — filtering, ranking, velocity calculations (e.g. `test_new_markets.py`)
+- **Formatting tests** — embed output, volume formatting, age display (e.g. `test_formatting.py`)
 - **API integration tests** — real HTTP calls to Polymarket APIs, verify data shapes
-- **Store tests** — JSON I/O, atomic writes, missing/empty file handling
-- **Cold start tests** — bootstrap logic, silent first run, correct behaviour from second run
-- **State lifecycle tests** — pruning, mid-cycle restarts, edge cases (markets appearing/disappearing within a cycle, clock skew, duplicate prevention)
