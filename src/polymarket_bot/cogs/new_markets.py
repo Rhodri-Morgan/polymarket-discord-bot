@@ -11,7 +11,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from polymarket_bot import store
+from polymarket_bot import market_url, store
 
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
@@ -129,9 +129,11 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
         new_markets = await check_new_markets(self.session, self.gamma_url)
         for market in new_markets:
             question = market.get("question", "Unknown")
-            slug = market.get("slug", "")
-            link = f"https://polymarket.com/event/{slug}"
-            await channel.send(f"**New Market:** {question}\n{link}")
+            link = market_url(market)
+            msg = f"**New Market:** {question}"
+            if link:
+                msg += f"\n{link}"
+            await channel.send(msg)
 
     @app_commands.command(name="new-markets", description="Manually check for new Polymarket markets")
     async def new_markets_cmd(self, interaction: discord.Interaction) -> None:
@@ -148,9 +150,11 @@ class NewMarketsCog(commands.Cog, name="NewMarkets"):
         lines = []
         for market in new_markets[:10]:
             question = market.get("question", "Unknown")
-            slug = market.get("slug", "")
-            link = f"https://polymarket.com/event/{slug}"
-            lines.append(f"**{question}**\n{link}")
+            link = market_url(market)
+            entry = f"**{question}**"
+            if link:
+                entry += f"\n{link}"
+            lines.append(entry)
         await interaction.followup.send("\n\n".join(lines))
 
 

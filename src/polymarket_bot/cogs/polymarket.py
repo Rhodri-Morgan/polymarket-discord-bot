@@ -10,6 +10,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from polymarket_bot import market_url
+
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
 
@@ -58,11 +60,14 @@ class PolymarketCog(commands.Cog, name="Polymarket"):
         embed = discord.Embed(title="Polymarket — Active Markets", colour=discord.Colour.blue())
         for market in markets[:5]:
             question = market.get("question", "Unknown")
-            slug = market.get("slug", "")
             volume = market.get("volume", "N/A")
+            link = market_url(market)
+            value = f"Volume: ${volume}"
+            if link:
+                value += f"  |  [View]({link})"
             embed.add_field(
                 name=question,
-                value=f"Volume: ${volume}  |  `{slug}`",
+                value=value,
                 inline=False,
             )
         await interaction.followup.send(embed=embed)

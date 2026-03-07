@@ -12,6 +12,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from polymarket_bot import market_url
+
 if TYPE_CHECKING:
     from polymarket_bot.bot import PolymarketBot
 
@@ -215,8 +217,7 @@ def _format_opportunities(opportunities: list[dict]) -> str:
     for m in opportunities:
         question = m.get("question", "Unknown")
         volume = _get_volume(m)
-        slug = m.get("slug", "")
-        link = f"https://polymarket.com/event/{slug}" if slug else ""
+        link = market_url(m)
         lines.append(f"  {question}")
         lines.append(f"    Volume: ${volume}  {link}")
         lines.append("")
