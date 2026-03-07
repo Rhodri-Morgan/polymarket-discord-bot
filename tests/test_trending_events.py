@@ -84,6 +84,12 @@ def test_no_tags_not_excluded():
     assert _has_excluded_tag(event) is False
 
 
+def test_sublabel_without_parent_not_excluded():
+    """Sublabels like NBA are not in the excluded set — we rely on the parent 'Sports' tag."""
+    event = _make_event("1", tags=["NBA", "Basketball"])
+    assert _has_excluded_tag(event) is False
+
+
 def test_case_insensitive_exclusion():
     """Tag matching should be case-insensitive."""
     event = _make_event("1", tags=["SPORTS"])

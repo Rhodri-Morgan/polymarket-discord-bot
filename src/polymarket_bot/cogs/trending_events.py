@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -18,37 +18,13 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Tags to exclude from trending results
+# Top-level categories to exclude from trending results.
+# Sublabels (e.g. "NBA", "Bitcoin") always carry the parent category tag,
+# so we only need to list the parent categories here.
 EXCLUDED_TAGS: set[str] = {
     "sports",
-    "soccer",
-    "epl",
-    "la liga",
-    "serie a",
-    "ligue 1",
-    "bundesliga",
-    "nba",
-    "nhl",
-    "hockey",
-    "basketball",
-    "golf",
-    "pga tour",
-    "fifa world cup",
-    "champions league",
-    "stanley cup",
-    "nba finals",
-    "nba champion",
     "esports",
-    "counter strike 2",
-    "games",
     "crypto",
-    "crypto prices",
-    "bitcoin",
-    "airdrops",
-    "stablecoins",
-    "pre-market",
-    "fdv",
-    "token launch",
     "weather",
     "recurring",
 }
@@ -168,7 +144,6 @@ async def _post_trending_thread(
 
     # Post events in batches
     for batch_start in range(0, len(events), EVENTS_PER_MESSAGE):
-        batch = events[batch_start : batch_start + EVENTS_PER_MESSAGE]
         embeds = format_trending_events(
             events,
             page=batch_start // EVENTS_PER_MESSAGE,
@@ -197,7 +172,7 @@ class TrendingCog(commands.Cog, name="Trending"):
         if self.session:
             await self.session.close()
 
-    @tasks.loop(hours=12)
+    @tasks.loop(time=[time(hour=0, tzinfo=timezone.utc), time(hour=12, tzinfo=timezone.utc)])
     async def check_loop(self) -> None:
         await self._run_check()
 
