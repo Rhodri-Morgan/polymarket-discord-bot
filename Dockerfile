@@ -12,4 +12,6 @@ RUN uv sync --frozen --no-install-project 2>/dev/null || uv sync --no-install-pr
 COPY . .
 RUN uv sync
 
+EXPOSE 3000
+
 CMD ["uv", "run", "python", "-m", "polymarket_bot"]
