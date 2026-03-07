@@ -1,5 +1,7 @@
 IMAGE_NAME := polymarket-bot
+CONTAINER_NAME := polymarket-bot
 DOCKER_RUN := docker run --rm \
+	--name $(CONTAINER_NAME) \
 	--env-file .env \
 	-v $(HOME)/.aws:/root/.aws:ro \
 	-v $(PWD)/data:/app/data \
@@ -30,12 +32,16 @@ dev: seed
 test:
 	uv run pytest
 
+.PHONY: docker-stop
+docker-stop:
+	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
+
 .PHONY: docker-build
 docker-build:
 	docker build -t $(IMAGE_NAME) .
 
 .PHONY: docker-run
-docker-run: docker-build
+docker-run: docker-stop docker-build
 	$(DOCKER_RUN) $(IMAGE_NAME)
 
 .PHONY: docker-seed
@@ -44,7 +50,7 @@ docker-seed: docker-build
 	$(DOCKER_RUN) $(IMAGE_NAME) uv run python scripts/seed_dev_data.py --data-dir /app/data
 
 .PHONY: docker-dev
-docker-dev: docker-seed
+docker-dev: docker-stop docker-seed
 	$(DOCKER_RUN) $(IMAGE_NAME)
 
 .PHONY: docker-test
