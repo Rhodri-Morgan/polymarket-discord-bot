@@ -19,15 +19,16 @@ jobs:
 
       - name: Build image
         id: build
-        uses: Rhodri-Morgan/github-workflows/build@bugfix/commit-sha-image-tag
+        uses: Rhodri-Morgan/github-workflows/build@v1
         with:
           image-repo: polymarket-discord-bot
           aws-region: eu-west-1
           account-id: ${{ secrets.AWS_ACCOUNT_ID }}
           role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          push-cache: "true"
 
       - name: Push
-        uses: Rhodri-Morgan/github-workflows/push@bugfix/commit-sha-image-tag
+        uses: Rhodri-Morgan/github-workflows/push@v1
         with:
           image-repo: polymarket-discord-bot
           image-tag: ${{ steps.build.outputs.image-tag }}

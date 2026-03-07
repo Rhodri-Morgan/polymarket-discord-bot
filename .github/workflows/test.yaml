@@ -18,7 +18,7 @@ jobs:
 
       - name: Build image
         id: build
-        uses: Rhodri-Morgan/github-workflows/build@bugfix/commit-sha-image-tag
+        uses: Rhodri-Morgan/github-workflows/build@v1
         with:
           image-repo: polymarket-discord-bot
           aws-region: eu-west-1
