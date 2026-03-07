@@ -306,8 +306,10 @@ class OpportunitiesCog(commands.Cog, name="Opportunities"):
         embeds[0].colour = colour
 
         num_pages = total_pages(len(opportunities), per_page)
-        view = MarketPaginationView(opportunities, per_page=per_page, title=title, colour=colour) if num_pages > 1 else None
-        await interaction.followup.send(embeds=embeds, view=view)
+        kwargs: dict = {"embeds": embeds}
+        if num_pages > 1:
+            kwargs["view"] = MarketPaginationView(opportunities, per_page=per_page, title=title, colour=colour)
+        await interaction.followup.send(**kwargs)
 
 
 async def setup(bot: PolymarketBot) -> None:

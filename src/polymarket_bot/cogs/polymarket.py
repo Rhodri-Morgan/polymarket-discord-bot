@@ -97,8 +97,10 @@ class PolymarketCog(commands.Cog, name="Polymarket"):
         embeds = format_market_list(markets, page=0, per_page=PER_PAGE)
         num_pages = total_pages(len(markets), PER_PAGE)
 
-        view = MarketPaginationView(markets, per_page=PER_PAGE) if num_pages > 1 else None
-        await interaction.followup.send(embeds=embeds, view=view)
+        kwargs: dict = {"embeds": embeds}
+        if num_pages > 1:
+            kwargs["view"] = MarketPaginationView(markets, per_page=PER_PAGE)
+        await interaction.followup.send(**kwargs)
 
     @app_commands.command(name="ping", description="Check if the bot is alive")
     async def ping_cmd(self, interaction: discord.Interaction) -> None:
