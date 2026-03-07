@@ -302,6 +302,75 @@ async def test_report_handles_disappeared_market(tmp_path):
     assert "mGone" not in all_ids
 
 
+async def test_tracks_individual_markets_within_same_event(tmp_path):
+    """Two markets in the same event should have independent volume tracking.
+
+    Verifies that volume movers operates at the market level — each market ID
+    gets its own volume entry in snapshots and its own row in the report.
+    """
+    from polymarket_bot.cogs.volume_movers import generate_report
+
+    now = _now()
+    old_ts = _utc_iso(now - timedelta(hours=24))
+    new_ts = _utc_iso(now)
+
+    # Two markets belonging to the same event, with different volume changes
+    await store.save(
+        "volume_snapshots",
+        {
+            "snapshots": {
+                old_ts: {
+                    "mA": {"question": "Ceasefire before GTA VI?", "volume": 1000},
+                    "mB": {"question": "New album before GTA VI?", "volume": 2000},
+                },
+                new_ts: {
+                    "mA": {"question": "Ceasefire before GTA VI?", "volume": 8000},
+                    "mB": {"question": "New album before GTA VI?", "volume": 2500},
+                },
+            }
+        },
+    )
+
+    report = await generate_report()
+    assert report is not None
+
+    # Both individual markets should appear in the report separately
+    abs_ids = [e["market_id"] for e in report["absolute"]]
+    assert "mA" in abs_ids
+    assert "mB" in abs_ids
+
+    # mA increased by 7000, mB by 500 — they are tracked independently
+    entry_a = [e for e in report["absolute"] if e["market_id"] == "mA"][0]
+    entry_b = [e for e in report["absolute"] if e["market_id"] == "mB"][0]
+    assert entry_a["abs_change"] == 7000
+    assert entry_b["abs_change"] == 500
+
+    # mA should rank higher than mB by absolute change
+    assert abs_ids.index("mA") < abs_ids.index("mB")
+
+
+async def test_snapshot_stores_per_market_id_not_per_event(tmp_path):
+    """Verify that take_snapshot keys data by individual market ID."""
+    from polymarket_bot.cogs.volume_movers import take_snapshot
+
+    # Two markets that would share an event in real life
+    fake_markets = [
+        {"id": "m1", "question": "Ceasefire before GTA VI?", "volume": "5000", "volumeNum": 5000},
+        {"id": "m2", "question": "New album before GTA VI?", "volume": "3000", "volumeNum": 3000},
+    ]
+
+    await take_snapshot(_make_fake_session(fake_markets), "https://fake-gamma.example.com")
+
+    data = await store.load("volume_snapshots")
+    snapshot = next(iter(data["snapshots"].values()))
+
+    # Both market IDs should be separate keys in the snapshot
+    assert "m1" in snapshot
+    assert "m2" in snapshot
+    assert snapshot["m1"]["volume"] == 5000.0
+    assert snapshot["m2"]["volume"] == 3000.0
+
+
 # ---------------------------------------------------------------------------
 # Integration — real API call
 # ---------------------------------------------------------------------------

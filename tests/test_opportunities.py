@@ -276,6 +276,88 @@ class TestEmptyResult:
         assert result == []
 
 
+class TestMarketLevelNotEventLevel:
+    """Opportunities should filter each market individually, not group by event."""
+
+    def test_same_event_markets_filtered_independently(self):
+        """Two markets sharing an event slug should pass or fail filters
+        based on their own volume/age/spread, not the event's aggregate."""
+        from polymarket_bot.cogs.opportunities import filter_opportunities
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Market A: low volume, wide spread — should pass
+        mkt_a = _make_market(
+            condition_id="mA",
+            question="Ceasefire before GTA VI?",
+            volume=5000,
+            created_at=now,
+            clob_token_ids=["tok_a"],
+        )
+        mkt_a["events"] = [{"slug": "what-will-happen-before-gta-vi"}]
+
+        # Market B: high volume, same event — should fail volume filter
+        mkt_b = _make_market(
+            condition_id="mB",
+            question="New album before GTA VI?",
+            volume=100000,
+            created_at=now,
+            clob_token_ids=["tok_b"],
+        )
+        mkt_b["events"] = [{"slug": "what-will-happen-before-gta-vi"}]
+
+        spreads = {"tok_a": 0.10, "tok_b": 0.10}
+
+        result = filter_opportunities(
+            markets=[mkt_a, mkt_b],
+            spreads=spreads,
+            max_volume=10000,
+            min_spread=0.05,
+            max_age_hours=48,
+        )
+
+        ids = [m["conditionId"] for m in result]
+        assert "mA" in ids, "Low-volume market should pass even though sibling has high volume"
+        assert "mB" not in ids, "High-volume market should fail even though sibling has low volume"
+
+    def test_each_market_uses_own_token_spread(self):
+        """Markets in the same event should use their own token's spread,
+        not a shared or averaged spread."""
+        from polymarket_bot.cogs.opportunities import filter_opportunities
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        mkt_wide = _make_market(
+            condition_id="wide_spread",
+            volume=5000,
+            created_at=now,
+            clob_token_ids=["tok_wide"],
+        )
+        mkt_wide["events"] = [{"slug": "shared-event"}]
+
+        mkt_tight = _make_market(
+            condition_id="tight_spread",
+            volume=5000,
+            created_at=now,
+            clob_token_ids=["tok_tight"],
+        )
+        mkt_tight["events"] = [{"slug": "shared-event"}]
+
+        spreads = {"tok_wide": 0.15, "tok_tight": 0.01}
+
+        result = filter_opportunities(
+            markets=[mkt_wide, mkt_tight],
+            spreads=spreads,
+            max_volume=10000,
+            min_spread=0.05,
+            max_age_hours=48,
+        )
+
+        ids = [m["conditionId"] for m in result]
+        assert "wide_spread" in ids
+        assert "tight_spread" not in ids
+
+
 # ---------------------------------------------------------------------------
 # Integration tests — real API calls
 # ---------------------------------------------------------------------------

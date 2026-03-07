@@ -180,3 +180,33 @@ async def test_state_persists_across_calls(tmp_path):
     # State should contain all three
     state = await store.load("seen_markets")
     assert set(state["seen_ids"]) == {"m1", "m2", "m3"}
+
+
+async def test_tracks_individual_markets_not_events(tmp_path):
+    """Multiple markets within the same event should each be tracked by their
+    own market ID, not grouped by event."""
+    from polymarket_bot.cogs.new_markets import check_new_markets
+
+    # Two markets that belong to the same event (same event slug, different market IDs)
+    m1 = _make_market("m1", "Ceasefire before GTA VI?", "ceasefire-before-gta-vi-554")
+    m1["events"] = [{"slug": "what-will-happen-before-gta-vi"}]
+
+    m2 = _make_market("m2", "New album before GTA VI?", "new-album-before-gta-vi-926")
+    m2["events"] = [{"slug": "what-will-happen-before-gta-vi"}]
+
+    # Cold start seeds both
+    session1 = _fake_session([m1, m2])
+    new1 = await check_new_markets(session1, "https://fake.api")
+    assert new1 == []
+
+    state = await store.load("seen_markets")
+    assert set(state["seen_ids"]) == {"m1", "m2"}
+
+    # Add a third market to the same event — only that one should be new
+    m3 = _make_market("m3", "Jesus returns before GTA VI?", "jesus-returns-before-gta-vi-665")
+    m3["events"] = [{"slug": "what-will-happen-before-gta-vi"}]
+
+    session2 = _fake_session([m1, m2, m3])
+    new2 = await check_new_markets(session2, "https://fake.api")
+    assert len(new2) == 1
+    assert new2[0]["id"] == "m3"
