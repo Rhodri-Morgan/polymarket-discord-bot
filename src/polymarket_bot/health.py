@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from aiohttp import web
 
 log = logging.getLogger(__name__)
 
-HEALTH_PORT = 3000
+HEALTH_PORT = int(os.environ.get("HEALTH_PORT", "4000"))
 
 
 async def _health_handler(request: web.Request) -> web.Response:
