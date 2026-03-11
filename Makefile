@@ -84,5 +84,5 @@ docker-clean:
 
 .PHONY: tag-and-push
 tag-and-push:
-	@gh api 'repos/Rhodri-Morgan/github-workflows/contents/scripts/tag-and-push.sh?ref=feature/add-eb-deploy' --jq '.content' | base64 -d > /tmp/tag-and-push.sh
+	@gh api 'repos/Rhodri-Morgan/github-workflows/contents/scripts/tag-and-push.sh?ref=v2' --jq '.content' | base64 -d > /tmp/tag-and-push.sh
 	@sh /tmp/tag-and-push.sh

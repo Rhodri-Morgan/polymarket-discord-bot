@@ -25,7 +25,7 @@ jobs:
     name: Deploy
     steps:
       - name: Deploy to Elastic Beanstalk
-        uses: Rhodri-Morgan/github-workflows/deploy_elastic_beanstalk@feature/add-eb-deploy
+        uses: Rhodri-Morgan/github-workflows/deploy_elastic_beanstalk@v2
         with:
           image-repo: polymarket-discord-bot
           image-tag: ${{ inputs.deploy-tag }}

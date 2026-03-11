@@ -20,7 +20,7 @@ jobs:
 
       - name: Build image
         id: build
-        uses: Rhodri-Morgan/github-workflows/build@v1
+        uses: Rhodri-Morgan/github-workflows/build@v2
         with:
           image-repo: polymarket-discord-bot
           aws-region: eu-west-1
