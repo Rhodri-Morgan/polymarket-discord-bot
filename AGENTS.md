@@ -106,6 +106,14 @@ make test
 
 `make format` and `make lint` must pass. Run `make test` as part of normal development validation. The pre-commit hook enforces `black` and `ruff check`, but do not rely on commit-time feedback as the first signal.
 
+### Docker Build Caching
+
+When changing the Docker build, preserve effective layer caching for CI.
+
+- Use `tools/check_docker_cache.sh` to simulate two separate CI-style Buildx runs and verify that the second build reuses cached layers.
+- Run this script after any meaningful change to `Dockerfile`, build-time dependencies, or Docker build inputs that could affect cache behavior.
+- Treat cache regressions as real issues. If dependency-install or other expensive layers stop caching between runs, adjust the Dockerfile before considering the work complete.
+
 ### Documentation Standards
 
 Use **PEP 257** as the baseline for Python docstrings in this repository.
