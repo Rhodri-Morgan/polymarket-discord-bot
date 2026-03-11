@@ -156,10 +156,12 @@ class TrendingCog(commands.Cog, name="Trending"):
     """Surfaces trending new Polymarket events."""
 
     def __init__(self, bot: PolymarketBot) -> None:
+        """Store bot references and defer HTTP session setup until cog load."""
         self.bot = bot
         self.session: aiohttp.ClientSession | None = None
 
     async def cog_load(self) -> None:
+        """Create the HTTP session and start the scheduled trending loop."""
         from polymarket_bot.config import settings
 
         self.gamma_url = settings.gamma_api_url
@@ -168,19 +170,23 @@ class TrendingCog(commands.Cog, name="Trending"):
         self.check_loop.start()
 
     async def cog_unload(self) -> None:
+        """Stop background tasks and close the HTTP session."""
         self.check_loop.cancel()
         if self.session:
             await self.session.close()
 
     @tasks.loop(time=[time(hour=0, tzinfo=timezone.utc), time(hour=12, tzinfo=timezone.utc)])
     async def check_loop(self) -> None:
+        """Run the scheduled trending-events post at configured UTC times."""
         await self._run_check()
 
     @check_loop.before_loop
     async def before_check_loop(self) -> None:
+        """Wait until the bot is ready before starting the scheduled loop."""
         await self.bot.wait_until_ready()
 
     async def _run_check(self) -> None:
+        """Fetch and post trending events to the configured alert channel."""
         if not self.session or not self.channel_id:
             return
 
@@ -198,6 +204,7 @@ class TrendingCog(commands.Cog, name="Trending"):
 
     @app_commands.command(name="trending", description=f"Top trending new Polymarket events (last {LOOKBACK_HOURS}h)")
     async def trending_cmd(self, interaction: discord.Interaction) -> None:
+        """Handle the slash command by posting results into a channel thread."""
         await interaction.response.defer()
         if not self.session:
             await interaction.followup.send("Session not ready.")
@@ -215,4 +222,5 @@ class TrendingCog(commands.Cog, name="Trending"):
 
 
 async def setup(bot: PolymarketBot) -> None:
+    """Register the trending-events cog with the bot."""
     await bot.add_cog(TrendingCog(bot))

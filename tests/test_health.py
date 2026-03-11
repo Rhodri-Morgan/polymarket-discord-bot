@@ -1,12 +1,10 @@
 """Tests for the health check HTTP server."""
 
-import asyncio
-
 import aiohttp
 import aiohttp.web
 import pytest
 
-from polymarket_bot.health import create_health_app, start_health_server
+from polymarket_bot.health import create_health_app
 
 
 @pytest.fixture

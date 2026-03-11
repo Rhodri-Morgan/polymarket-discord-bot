@@ -3,14 +3,14 @@
 import asyncio
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
 from polymarket_bot.bot import PolymarketBot
 from polymarket_bot.config import settings
 from polymarket_bot.health import start_health_server
 
 
 async def main() -> None:
+    """Start the health server and run the Discord bot until shutdown."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     health_runner = await start_health_server()
     try:
         async with PolymarketBot() as bot:

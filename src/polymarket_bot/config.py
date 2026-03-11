@@ -12,6 +12,8 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
+    """Runtime configuration loaded from environment variables."""
+
     discord_bot_token: str
     discord_guild_id: int | None
     discord_channel_id: int | None
@@ -20,6 +22,7 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
+        """Construct settings from environment variables and default values."""
         token = os.environ["DISCORD_BOT_TOKEN"]
         guild_id_raw = os.environ.get("DISCORD_GUILD_ID", "").strip("'\"")
         channel_raw = os.environ.get("DISCORD_CHANNEL_ID", "").strip("'\"")

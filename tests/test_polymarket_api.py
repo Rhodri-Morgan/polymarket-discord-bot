@@ -116,7 +116,13 @@ class TestEventsFiltering:
                 assert first_vol >= second_vol
 
     async def test_pagination_with_offset(self, session: aiohttp.ClientSession):
-        params = {"limit": 2, "active": "true", "closed": "false", "order": "volume", "ascending": "false"}
+        params = {
+            "limit": 2,
+            "active": "true",
+            "closed": "false",
+            "order": "volume",
+            "ascending": "false",
+        }
         async with session.get(f"{GAMMA_API_URL}/events", params=params) as resp:
             page0 = await resp.json()
 
