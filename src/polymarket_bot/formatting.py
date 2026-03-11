@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 
 import discord
 
-
 _CATEGORY_EMOJI: dict[str, str] = {
     "politics": "\U0001f3db\ufe0f",
     "sports": "\u26bd",

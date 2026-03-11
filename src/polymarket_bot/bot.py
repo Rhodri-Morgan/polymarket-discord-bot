@@ -16,7 +16,10 @@ COGS_DIR = Path(__file__).parent / "cogs"
 
 
 class PolymarketBot(commands.Bot):
+    """Discord bot that auto-loads all cogs in the project package."""
+
     def __init__(self) -> None:
+        """Initialize the bot with default intents and configured guild scope."""
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
@@ -24,6 +27,7 @@ class PolymarketBot(commands.Bot):
         self.guild_id = settings.discord_guild_id
 
     async def setup_hook(self) -> None:
+        """Load cogs and sync slash commands before the bot connects."""
         self.tree.on_error = self._on_tree_error
 
         for cog_file in COGS_DIR.glob("*.py"):
@@ -41,6 +45,7 @@ class PolymarketBot(commands.Bot):
             await self.tree.sync()
 
     async def _on_tree_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
+        """Log slash-command failures and send a fallback error response."""
         original = getattr(error, "original", error)
         if isinstance(original, discord.NotFound) and original.code == 10062:
             log.warning("Interaction expired for /%s (user likely retried)", interaction.command)
@@ -55,10 +60,13 @@ class PolymarketBot(commands.Bot):
             pass
 
     async def on_ready(self) -> None:
+        """Log a startup message once the bot is fully connected."""
         log.info("Logged in as %s (ID: %s)", self.user, self.user.id if self.user else "?")
 
     async def on_command_error(self, ctx, error) -> None:
+        """Log prefix-command failures reserved for admin or debug usage."""
         log.error("Command error: %s", error)
 
     async def on_error(self, event_method: str, *args, **kwargs) -> None:
+        """Log uncaught Discord event handler exceptions."""
         log.exception("Unhandled exception in %s", event_method)

@@ -2,9 +2,6 @@
 
 from datetime import datetime, timedelta, timezone
 
-import discord
-import pytest
-
 from polymarket_bot.formatting import (
     _event_category_emoji,
     _format_age,

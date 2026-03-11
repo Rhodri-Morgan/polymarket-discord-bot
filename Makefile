@@ -16,6 +16,18 @@ install:
 install-dev:
 	uv sync --dev
 
+.PHONY: install-git-hooks
+install-git-hooks:
+	uv run pre-commit install
+
+.PHONY: format
+format:
+	uv run black .
+
+.PHONY: lint
+lint:
+	uv run ruff check .
+
 .PHONY: run
 run:
 	uv run python -m polymarket_bot

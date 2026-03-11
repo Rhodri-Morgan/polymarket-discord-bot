@@ -1,9 +1,5 @@
 """Tests for the store module — JSON file I/O with atomic writes."""
 
-import json
-import os
-from pathlib import Path
-
 import pytest
 
 from polymarket_bot import store

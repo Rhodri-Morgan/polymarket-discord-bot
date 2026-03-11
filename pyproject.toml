@@ -22,12 +22,22 @@ dev = [
     "pytest-asyncio>=0.23",
     "black>=24",
     "flake8>=7",
+    "pre-commit>=4.5.1",
     "requests>=2.31",
+    "ruff>=0.15.5",
 ]
 
 [tool.black]
 target-version = ["py311"]
-line-length = 100
+line-length = 150
+
+[tool.ruff]
+target-version = "py311"
+line-length = 150
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

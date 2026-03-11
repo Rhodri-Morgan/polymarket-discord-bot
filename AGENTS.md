@@ -39,8 +39,12 @@ All cog output that produces lists of data (e.g. trending events, future feature
 
 ```bash
 cp .env.example .env   # fill in real values
+make install-dev
+make install-git-hooks
 make docker-dev        # seed data + run the bot in Docker
 ```
+
+Install git hooks in each clone with `make install-git-hooks`. The pre-commit hook runs `black` first and then `ruff check` without automatic fixes.
 
 ### Makefile Targets — Docker (preferred)
 
@@ -62,6 +66,9 @@ All Docker targets mount `.env`, `~/.aws` (read-only, `AWS_PROFILE=rtm`), and `.
 | ------------------ | ------------------------------ |
 | `make install`     | Install production deps via uv |
 | `make install-dev` | Install dev deps via uv        |
+| `make install-git-hooks` | Install the git pre-commit hook |
+| `make format`      | Run Black formatting locally   |
+| `make lint`        | Run Ruff linting locally       |
 | `make run`         | Run the bot locally            |
 | `make seed`        | Seed dev data locally          |
 | `make dev`         | Seed data + run the bot        |
@@ -74,6 +81,7 @@ All Docker targets mount `.env`, `~/.aws` (read-only, `AWS_PROFILE=rtm`), and `.
 2. Define a class extending `commands.Cog`
 3. Add an `async def setup(bot)` function at module level
 4. The bot will auto-load it on next restart
+5. **Update `README.md`** — add any new slash commands to the Slash Commands table and any new scheduled tasks to the Scheduled Posts table
 
 ### Test-Driven Development
 
@@ -83,6 +91,34 @@ This project follows **strict TDD**. For every new feature:
 2. **Verify the tests fail** — run `make test` to confirm they fail for the right reason.
 3. **Implement the feature** — write the minimum code to make the tests pass.
 4. **Run tests again** — confirm everything passes before moving on.
+
+### Development Workflow
+
+For any code change, run formatting and linting before considering the work complete.
+
+Local workflow:
+
+```bash
+make format
+make lint
+make test
+```
+
+`make format` and `make lint` must pass. Run `make test` as part of normal development validation. The pre-commit hook enforces `black` and `ruff check`, but do not rely on commit-time feedback as the first signal.
+
+### Documentation Standards
+
+Use **PEP 257** as the baseline for Python docstrings in this repository.
+
+- Add docstrings to public modules, public classes, public functions, and public methods.
+- Use **Google-style docstrings** when documenting arguments, return values, raised exceptions, or side effects.
+- Keep one-line docstrings for simple, self-explanatory APIs.
+- Use multi-line docstrings when behavior, inputs, outputs, or edge cases need explanation.
+- Write docstrings in the imperative mood and describe what the object does.
+- Prefer documenting behavior and constraints over repeating type hints or obvious implementation details.
+- Do not add docstrings to trivial private helpers unless the logic is non-obvious, the function has important side effects, or the helper encodes domain-specific assumptions.
+- When a slash command, scheduled task, or formatting helper has non-obvious Discord-specific behavior, document the operational constraint clearly in the docstring.
+- Keep docstrings up to date when behavior changes.
 
 **This is mandatory.** Do not implement features without writing tests first. Do not skip edge cases.
 

@@ -5,14 +5,11 @@ import json
 import pytest
 
 from polymarket_bot.cogs.mispriced_markets import (
-    MAX_DEVIATION,
-    MIN_EVENT_LIQUIDITY,
-    MIN_MARKET_LIQUIDITY,
     MAX_RESULTS,
-    _parse_yes_price,
-    _event_price_sum,
     _event_deviation,
+    _event_price_sum,
     _is_tradeable,
+    _parse_yes_price,
     rank_mispriced_events,
 )
 

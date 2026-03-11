@@ -2,10 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from polymarket_bot.cogs.trending_events import (
-    EXCLUDED_TAGS,
     _has_excluded_tag,
     _volume_velocity,
 )
@@ -135,7 +132,6 @@ def test_sorting_by_velocity():
         _make_event("medium", volume=30000, age_hours=12),  # ~2500/hr
     ]
     events.sort(key=_volume_velocity, reverse=True)
-    titles = [e["title"] for e in events]
     # "hot" should be first (highest velocity), then "medium", then "slow"
     assert events[0]["id"] == "hot"
     assert events[1]["id"] == "medium"
