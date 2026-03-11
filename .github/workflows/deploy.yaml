@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy-tag:
+        description: "Image Tag:"
+        default: 2026.MM.DD-n
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+run-name: Deploy ${{ inputs.deploy-tag }}
+
+concurrency:
+  group: deploy-polymarket-discord-bot
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy polymarket-discord-bot
+    steps:
+      - name: Deploy to Elastic Beanstalk
+        uses: Rhodri-Morgan/github-workflows/deploy_elastic_beanstalk@feature/add-eb-deploy
+        with:
+          image-repo: polymarket-discord-bot
+          image-tag: ${{ inputs.deploy-tag }}
+          aws-region: eu-west-1
+          account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+          role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          image-tag-ssm-parameter: prod-eu-west-1-polymarket-discord-bot-image-tag
+          eb-application: prod-eu-west-1-polymarket-discord-bot
+          eb-environment: prod-eu-west-1-polymarket-discord-bot
+          eb-deployment-bucket: prod-eu-west-1-eb-deployments
+          wait-timeout: "600"
