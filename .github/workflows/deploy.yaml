@@ -22,7 +22,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy polymarket-discord-bot
+    name: Deploy
     steps:
       - name: Deploy to Elastic Beanstalk
         uses: Rhodri-Morgan/github-workflows/deploy_elastic_beanstalk@feature/add-eb-deploy
