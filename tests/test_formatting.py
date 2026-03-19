@@ -150,24 +150,25 @@ class TestFormatTrendingEvents:
         embeds = format_trending_events(events, page=0, per_page=10)
         assert len(embeds) == 1
         assert len(embeds[0].fields) == 1
-        assert "Hot Event" in embeds[0].fields[0].value
-        assert "polymarket.com" in embeds[0].fields[0].value
+        field_value = embeds[0].fields[0].value
+        assert field_value and "Hot Event" in field_value
+        assert field_value and "polymarket.com" in field_value
 
     def test_pagination_footer(self):
         events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(25)]
         embeds = format_trending_events(events, page=0, per_page=10)
-        footer = embeds[0].footer.text if embeds[0].footer else ""
-        assert "1" in footer
-        assert "10" in footer
-        assert "25" in footer
+        footer_text = embeds[0].footer.text if embeds[0].footer else ""
+        assert footer_text and "1" in footer_text
+        assert footer_text and "10" in footer_text
+        assert footer_text and "25" in footer_text
 
     def test_page_two(self):
         events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(25)]
         embeds = format_trending_events(events, page=1, per_page=10)
         assert len(embeds[0].fields) == 10
-        footer = embeds[0].footer.text if embeds[0].footer else ""
-        assert "11" in footer
-        assert "20" in footer
+        footer_text = embeds[0].footer.text if embeds[0].footer else ""
+        assert footer_text and "11" in footer_text
+        assert footer_text and "20" in footer_text
 
     def test_last_partial_page(self):
         events = [_make_event(title=f"Event {i}", slug=f"event-{i}") for i in range(23)]
@@ -179,18 +180,19 @@ class TestFormatTrendingEvents:
         events[0]["slug"] = ""
         embeds = format_trending_events(events)
         # Should still render without a link
-        assert "No Slug" in embeds[0].fields[0].value
-        assert "polymarket.com" not in embeds[0].fields[0].value
+        field_value = embeds[0].fields[0].value
+        assert field_value and "No Slug" in field_value
+        assert field_value and "polymarket.com" not in field_value
 
     def test_volume_and_age_in_field(self):
         events = [_make_event(volume=1_500_000, age_hours=6)]
         embeds = format_trending_events(events)
         value = embeds[0].fields[0].value
-        assert "$1.5M" in value
-        assert "6h" in value
+        assert value and "$1.5M" in value
+        assert value and "6h" in value
 
     def test_market_count_in_field(self):
         events = [_make_event(num_markets=5)]
         embeds = format_trending_events(events)
         value = embeds[0].fields[0].value
-        assert "5" in value
+        assert value and "5" in value

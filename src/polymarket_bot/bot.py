@@ -28,7 +28,7 @@ class PolymarketBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         """Load cogs and sync slash commands before the bot connects."""
-        self.tree.on_error = self._on_tree_error
+        self.tree.on_error = self._on_tree_error  # type: ignore[assignment]
 
         for cog_file in COGS_DIR.glob("*.py"):
             if cog_file.name.startswith("_"):
@@ -37,12 +37,9 @@ class PolymarketBot(commands.Bot):
             await self.load_extension(ext)
             log.info("Loaded extension: %s", ext)
 
-        if self.guild_id:
-            guild = discord.Object(id=self.guild_id)
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-        else:
-            await self.tree.sync()
+        guild = discord.Object(id=self.guild_id)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
     async def _on_tree_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
         """Log slash-command failures and send a fallback error response."""

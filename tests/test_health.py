@@ -15,7 +15,8 @@ async def health_app():
     site = aiohttp.web.TCPSite(runner, "127.0.0.1", 0)
     await site.start()
     # Get the dynamically assigned port
-    port = site._server.sockets[0].getsockname()[1]
+    assert site._server is not None, "Server should be running"
+    port = site._server.sockets[0].getsockname()[1]  # type: ignore[attr-defined]
     yield f"http://127.0.0.1:{port}"
     await runner.cleanup()
 

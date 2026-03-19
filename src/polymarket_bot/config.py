@@ -9,30 +9,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+GAMMA_API_URL = "https://gamma-api.polymarket.com"
+
 
 @dataclass(frozen=True)
 class Settings:
     """Runtime configuration loaded from environment variables."""
 
     discord_bot_token: str
-    discord_guild_id: int | None
-    discord_channel_id: int | None
-    gamma_api_url: str
-    data_dir: str
+    discord_guild_id: int
+    discord_channel_id: int
 
     @classmethod
     def from_env(cls) -> Settings:
         """Construct settings from environment variables and default values."""
         token = os.environ["DISCORD_BOT_TOKEN"]
-        guild_id_raw = os.environ.get("DISCORD_GUILD_ID", "").strip("'\"")
-        channel_raw = os.environ.get("DISCORD_CHANNEL_ID", "").strip("'\"")
+        guild_id = os.environ["DISCORD_GUILD_ID"].strip("'\"")
+        channel_id = os.environ["DISCORD_CHANNEL_ID"].strip("'\"")
 
         return cls(
             discord_bot_token=token.strip("'\""),
-            discord_guild_id=int(guild_id_raw) if guild_id_raw else None,
-            discord_channel_id=int(channel_raw) if channel_raw else None,
-            gamma_api_url=os.environ.get("POLYMARKET_GAMMA_API_URL", "https://gamma-api.polymarket.com"),
-            data_dir=os.environ.get("DATA_DIR", "/app/data").strip("'\""),
+            discord_guild_id=int(guild_id),
+            discord_channel_id=int(channel_id),
         )
 
 
