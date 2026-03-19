@@ -32,7 +32,7 @@ jobs:
           push-cache: "true"
 
       - name: Run tests in built image
-        run: docker run --rm local/polymarket-discord-bot:${{ steps.build.outputs.image-tag }} make test
+        run: docker run --rm local/polymarket-discord-bot:${{ steps.build.outputs.image-tag }} make ci-test
 
       - name: Push
         uses: Rhodri-Morgan/github-workflows/push@v2
