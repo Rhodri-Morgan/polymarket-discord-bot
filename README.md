@@ -9,6 +9,14 @@ cp .env.example .env   # fill in values
 make docker-run
 ```
 
+## Prerequisites
+
+- [Python 3.11+](https://www.python.org/)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [Docker](https://www.docker.com/)
+- [Node.js](https://nodejs.org/) (for openlogs)
+- [openlogs](https://github.com/charlietlamb/openlogs)
+
 ## Quick Start (Local)
 
 ```bash
@@ -39,23 +47,22 @@ Git commits run `ruff` through a pre-commit hook once installed.
 | Variable                   | Required | Default                            | Description                             |
 | -------------------------- | -------- | ---------------------------------- | --------------------------------------- |
 | `DISCORD_BOT_TOKEN`        | Yes      | —                                  | Discord bot token                       |
-| `DISCORD_GUILD_ID`         | No       | —                                  | Guild ID for instant slash command sync |
-| `DISCORD_CHANNEL_ID`       | No       | —                                  | Channel for scheduled posts             |
-| `POLYMARKET_GAMMA_API_URL` | No       | `https://gamma-api.polymarket.com` | Gamma API base URL                      |
-| `DATA_DIR`                 | No       | `/app/data`                        | Directory for persistent data files     |
+| `DISCORD_GUILD_ID`         | Yes      | —                                  | Guild ID for slash command sync         |
+| `DISCORD_CHANNEL_ID`       | Yes      | —                                  | Channel for scheduled posts             |
 
 ## Makefile Targets
 
-| Target              | Description                        |
-| ------------------- | ---------------------------------- |
-| `make docker-run`   | Build + run the bot in Docker      |
-| `make docker-dev`   | Seed data + run the bot            |
-| `make docker-test`  | Run pytest in Docker               |
-| `make docker-build` | Build the Docker image             |
-| `make docker-shell` | Interactive shell in the container |
-| `make install-git-hooks` | Install the git pre-commit hook |
-| `make run`          | Run the bot locally                |
-| `make test`         | Run pytest locally                 |
+| Target                   | Description                        |
+| ------------------------ | ---------------------------------- |
+| `make docker-run`        | Build + run the bot in Docker      |
+| `make docker-dev`        | Build + run the bot                |
+| `make docker-test`       | Run pytest in Docker               |
+| `make docker-logs`       | Print latest docker bot/test logs  |
+| `make docker-build`      | Build the Docker image             |
+| `make docker-shell`      | Interactive shell in the container |
+| `make install-git-hooks` | Install the git pre-commit hook    |
+| `make run`               | Run the bot locally                |
+| `make test`              | Run pytest locally                 |
 
 ## Project Structure
 
