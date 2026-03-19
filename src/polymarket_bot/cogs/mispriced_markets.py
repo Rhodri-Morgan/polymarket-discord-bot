@@ -245,9 +245,9 @@ class MispricedMarketsCog(commands.Cog, name="MispricedMarkets"):
 
     async def cog_load(self) -> None:
         """Create the HTTP session and start the scheduled mispricing loop."""
-        from polymarket_bot.config import settings
+        from polymarket_bot.config import GAMMA_API_URL, settings
 
-        self.gamma_url = settings.gamma_api_url
+        self.gamma_url = GAMMA_API_URL
         self.channel_id = settings.discord_channel_id
         self.session = aiohttp.ClientSession()
         self.check_loop.start()
@@ -283,7 +283,7 @@ class MispricedMarketsCog(commands.Cog, name="MispricedMarkets"):
             return
 
         log.info("Posting %d mispriced events to alert channel.", len(events))
-        await _post_mispriced_thread(channel, events)
+        await _post_mispriced_thread(channel, events)  # type: ignore[arg-type]
 
     @app_commands.command(
         name="mispriced",
@@ -303,7 +303,7 @@ class MispricedMarketsCog(commands.Cog, name="MispricedMarkets"):
 
         await interaction.followup.send("Scanning for mispriced markets...")
         channel = interaction.channel
-        await _post_mispriced_thread(channel, events)
+        await _post_mispriced_thread(channel, events)  # type: ignore[arg-type]
 
 
 async def setup(bot: PolymarketBot) -> None:

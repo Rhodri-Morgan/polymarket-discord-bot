@@ -162,9 +162,9 @@ class TrendingCog(commands.Cog, name="Trending"):
 
     async def cog_load(self) -> None:
         """Create the HTTP session and start the scheduled trending loop."""
-        from polymarket_bot.config import settings
+        from polymarket_bot.config import GAMMA_API_URL, settings
 
-        self.gamma_url = settings.gamma_api_url
+        self.gamma_url = GAMMA_API_URL
         self.channel_id = settings.discord_channel_id
         self.session = aiohttp.ClientSession()
         self.check_loop.start()
@@ -200,7 +200,7 @@ class TrendingCog(commands.Cog, name="Trending"):
             return
 
         log.info("Posting %d trending events to alert channel.", len(events))
-        await _post_trending_thread(channel, events)
+        await _post_trending_thread(channel, events)  # type: ignore[arg-type]
 
     @app_commands.command(name="trending", description=f"Top trending new Polymarket events (last {LOOKBACK_HOURS}h)")
     async def trending_cmd(self, interaction: discord.Interaction) -> None:
@@ -218,7 +218,7 @@ class TrendingCog(commands.Cog, name="Trending"):
         # Post summary to the channel, then create thread on it
         await interaction.followup.send("Fetching trending events...")
         channel = interaction.channel
-        await _post_trending_thread(channel, events)
+        await _post_trending_thread(channel, events)  # type: ignore[arg-type]
 
 
 async def setup(bot: PolymarketBot) -> None:

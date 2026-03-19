@@ -1,17 +1,33 @@
 # Polymarket Discord Bot — Agent Instructions
 
+> **Keep this file current.** AGENTS.md is the single source of truth for how
+> this project works — its architecture, conventions, and development rules.
+> Update it whenever you add, change, or remove a pattern. For detailed
+> documentation on macro components (cogs, APIs, infrastructure), see the
+> `/docs` directory. Volatile details that change often (specific schedules,
+> thresholds, command names) belong here or in source code, not in `/docs`.
+> Docs should cover stable patterns and concepts.
+
+## Component Docs
+
+| Doc | Description |
+| --- | ----------- |
+| [docs/1_thread_output_pattern.md](docs/1_thread_output_pattern.md) | Discord thread-based output pattern |
+| [docs/2_gamma_api.md](docs/2_gamma_api.md) | Polymarket Gamma API — endpoints, field types, negRisk quirks |
+| [docs/3_cog_lifecycle.md](docs/3_cog_lifecycle.md) | Cog lifecycle — skeleton, sessions, tasks, slash commands |
+
 ## Project Overview
 
 A Discord bot that surfaces live Polymarket prediction-market data via slash commands and scheduled alerts. Built with Python 3.11+ and discord.py v2.
 
 ## Key Patterns
 
-- **Docker-first**: all development and testing should be done through Docker. Use `make docker-*` targets for building, running, testing, and seeding data. Local targets exist as a fallback but Docker is the preferred workflow.
+- **Docker-first**: all development and testing should be done through Docker. Use `make docker-*` targets for building, running, and testing. Local targets exist as a fallback but Docker is the preferred workflow.
 - **Cog-based**: each feature area is a `commands.Cog` under `src/polymarket_bot/cogs/`. The bot auto-discovers and loads any `.py` file in that directory (excluding `_`-prefixed files).
 - **Slash commands only**: all user-facing commands use `app_commands` (not prefix commands). The `!` prefix is configured but reserved for admin/debug use.
 - **Async HTTP**: each cog manages its own `aiohttp.ClientSession` via `cog_load` / `cog_unload`.
 - **Scheduled tasks**: `discord.ext.tasks` loops for background alerts.
-- **Stateless queries**: prefer stateless API queries (e.g. `start_date_min` filters) over local state files. Only persist state when absolutely necessary.
+- **Stateless queries**: all data comes from stateless API queries (e.g. `start_date_min` filters). No local state files.
 - **Config**: all secrets and tunables come from environment variables (see `.env.example`). Never hardcode tokens or URLs.
 
 ### Thread-Based Output (standard pattern)
@@ -35,45 +51,53 @@ All cog output that produces lists of data (e.g. trending events, future feature
 
 ## Development
 
+### Prerequisites
+
+- [Python 3.11+](https://www.python.org/)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [Docker](https://www.docker.com/)
+- [Node.js](https://nodejs.org/) (for openlogs)
+- [openlogs](https://github.com/charlietlamb/openlogs)
+- [direnv](https://direnv.net/) (auto-loads secrets from AWS Secrets Manager via `.envrc`)
+
 ### Setup
 
 ```bash
-cp .env.example .env   # fill in real values
-make install-dev
-make install-git-hooks
-make docker-dev        # seed data + run the bot in Docker
+make init              # direnv hook, secrets, dev deps, git hooks
+make docker-dev        # run the bot in Docker
 ```
 
 Install git hooks in each clone with `make install-git-hooks`. The pre-commit hook runs `black` first and then `ruff check` without automatic fixes.
 
 ### Makefile Targets — Docker (preferred)
 
-All Docker targets mount `.env`, `~/.aws` (read-only, `AWS_PROFILE=rtm`), and `./data:/app/data`.
+All Docker targets mount `.env` and `~/.aws` (read-only, `AWS_PROFILE=rtm`).
 
 | Target              | Description                                    |
 | ------------------- | ---------------------------------------------- |
 | `make docker-build` | Build the Docker image                         |
 | `make docker-run`   | Build + run the bot in Docker                  |
-| `make docker-seed`  | Build + seed dev data (backdated state files)  |
-| `make docker-dev`   | Seed data then run the bot (full dev workflow) |
+| `make docker-dev`   | Build + run the bot (full dev workflow)         |
 | `make docker-test`  | Run pytest in Docker                           |
+| `make docker-logs`  | Print latest docker bot/test logs              |
 | `make docker-shell` | Interactive bash shell in the container        |
 | `make docker-clean` | Remove the Docker image                        |
 
 ### Makefile Targets — Local (fallback)
 
-| Target             | Description                    |
-| ------------------ | ------------------------------ |
-| `make install`     | Install production deps via uv |
-| `make install-dev` | Install dev deps via uv        |
+| Target                   | Description                     |
+| ------------------------ | ------------------------------- |
+| `make init`              | Setup direnv, deps, git hooks   |
+| `make install`           | Install production deps via uv  |
+| `make install-dev`       | Install dev deps via uv         |
 | `make install-git-hooks` | Install the git pre-commit hook |
-| `make format`      | Run Black formatting locally   |
-| `make lint`        | Run Ruff linting locally       |
-| `make run`         | Run the bot locally            |
-| `make seed`        | Seed dev data locally          |
-| `make dev`         | Seed data + run the bot        |
-| `make test`        | Run pytest locally             |
-| `make clean`       | Remove .venv, caches, and data |
+| `make format`            | Run Black formatting locally    |
+| `make lint`              | Run Ruff linting locally        |
+| `make typecheck`         | Run ty type checking locally    |
+| `make run`               | Run the bot locally             |
+| `make dev`               | Run the bot locally             |
+| `make test`              | Run pytest locally              |
+| `make clean`             | Remove .venv and caches         |
 
 ### Adding a New Cog
 
@@ -101,6 +125,7 @@ Local workflow:
 ```bash
 make format
 make lint
+make typecheck
 make test
 ```
 

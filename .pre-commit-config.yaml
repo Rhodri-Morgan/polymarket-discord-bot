@@ -7,3 +7,11 @@ repos:
     rev: v0.14.10
     hooks:
       - id: ruff-check
+  - repo: local
+    hooks:
+      - id: ty-check
+        name: ty type check
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
