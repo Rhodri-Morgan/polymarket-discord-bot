@@ -55,6 +55,10 @@ dev:
 test:
 	openlogs --name test uv run pytest
 
+.PHONY: ci-test
+ci-test:
+	uv run pytest
+
 .PHONY: docker-stop
 docker-stop:
 	@docker stop $(APP_NAME) 2>/dev/null || true
