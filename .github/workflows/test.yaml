@@ -20,7 +20,7 @@ jobs:
 
       - name: Build image
         id: build
-        uses: Rhodri-Morgan/github-workflows/build@v2
+        uses: Rhodri-Morgan/github-workflows/build@fix/dockerrun-json-formatting
         with:
           image-repo: polymarket-discord-bot
           aws-region: eu-west-1

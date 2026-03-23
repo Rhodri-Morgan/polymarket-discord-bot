@@ -22,7 +22,7 @@ jobs:
 
       - name: Build image
         id: build
-        uses: Rhodri-Morgan/github-workflows/build@v2
+        uses: Rhodri-Morgan/github-workflows/build@fix/dockerrun-json-formatting
         with:
           image-repo: polymarket-discord-bot
           image-tag: ${{ github.ref_name }}
@@ -35,7 +35,7 @@ jobs:
         run: docker run --rm local/polymarket-discord-bot:${{ steps.build.outputs.image-tag }} make ci-test
 
       - name: Push
-        uses: Rhodri-Morgan/github-workflows/push@v2
+        uses: Rhodri-Morgan/github-workflows/push@fix/dockerrun-json-formatting
         with:
           image-repo: polymarket-discord-bot
           image-tag: ${{ steps.build.outputs.image-tag }}
