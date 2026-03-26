@@ -1,4 +1,4 @@
-# Polymarket Discord Bot — Agent Instructions
+# polymarket-discord-bot — Agent Instructions
 
 > **Keep this file current.** AGENTS.md is the single source of truth for how
 > this project works — its architecture, conventions, and development rules.
