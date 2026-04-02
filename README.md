@@ -1,7 +1,5 @@
 # Polymarket Discord Bot
 
-*This is an AI assisted project*
-
 A Discord bot that surfaces trending [Polymarket](https://polymarket.com) prediction market events, ranked by volume velocity.
 
 ## Quick Start (Docker)
