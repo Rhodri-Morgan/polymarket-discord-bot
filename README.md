@@ -1,11 +1,13 @@
 # Polymarket Discord Bot
 
+![deployed.png](https://img.shields.io/badge/-Deployed-green)
+
 A Discord bot that surfaces trending [Polymarket](https://polymarket.com) prediction market events, ranked by volume velocity.
 
 ## Quick Start (Docker)
 
 ```bash
-cp .env.example .env   # fill in values
+direnv allow          # loads secrets from AWS Secrets Manager and writes .env
 make docker-run
 ```
 
@@ -16,11 +18,13 @@ make docker-run
 - [Docker](https://www.docker.com/)
 - [Node.js](https://nodejs.org/) (for openlogs)
 - [openlogs](https://github.com/charlietlamb/openlogs)
+- [direnv](https://direnv.net/) (auto-loads secrets via `.envrc`)
+- [AWS CLI](https://aws.amazon.com/cli/) and [jq](https://stedolan.github.io/jq/) (used by `.envrc` to fetch secrets)
 
 ## Quick Start (Local)
 
 ```bash
-cp .env.example .env   # fill in values
+direnv allow
 make install-dev
 make install-git-hooks
 make run
@@ -30,10 +34,13 @@ Git commits run `ruff` through a pre-commit hook once installed.
 
 ## Slash Commands
 
-| Command      | Description                                           |
-| ------------ | ----------------------------------------------------- |
-| `/trending`  | Top trending Polymarket events from the last 48 hours |
-| `/mispriced` | Find mispriced markets with arbitrage opportunities   |
+Commands are synced globally. `/commands` is DM-only; `/trending` and `/mispriced` run in a server channel and post results into a thread.
+
+| Command      | Context  | Description                                           |
+| ------------ | -------- | ----------------------------------------------------- |
+| `/commands`  | DM only  | List the available commands                           |
+| `/trending`  | Channel  | Top trending Polymarket events from the last 48 hours |
+| `/mispriced` | Channel  | Find mispriced markets with arbitrage opportunities   |
 
 ## Scheduled Posts
 
@@ -44,11 +51,13 @@ Git commits run `ruff` through a pre-commit hook once installed.
 
 ## Configuration
 
-| Variable                   | Required | Default                            | Description                             |
-| -------------------------- | -------- | ---------------------------------- | --------------------------------------- |
-| `DISCORD_BOT_TOKEN`        | Yes      | —                                  | Discord bot token                       |
-| `DISCORD_GUILD_ID`         | Yes      | —                                  | Guild ID for slash command sync         |
-| `DISCORD_CHANNEL_ID`       | Yes      | —                                  | Channel for scheduled posts             |
+| Variable             | Required | Default | Description                              |
+| -------------------- | -------- | ------- | ---------------------------------------- |
+| `DISCORD_BOT_TOKEN`  | Yes      | —       | Discord bot token                        |
+| `DISCORD_CHANNEL_ID` | Yes      | —       | Channel for scheduled trending/mispriced posts |
+| `HEALTH_PORT`        | No       | `4000`  | Health-check HTTP port                   |
+
+In prod, secrets come from AWS Secrets Manager via the ECS task definition. Locally, `.envrc` pulls `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` from `local-polymarket-discord-bot` and writes a `.env` file consumed by `make docker-*`.
 
 ## Makefile Targets
 

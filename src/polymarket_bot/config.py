@@ -17,19 +17,16 @@ class Settings:
     """Runtime configuration loaded from environment variables."""
 
     discord_bot_token: str
-    discord_guild_id: int
     discord_channel_id: int
 
     @classmethod
     def from_env(cls) -> Settings:
         """Construct settings from environment variables and default values."""
         token = os.environ["DISCORD_BOT_TOKEN"]
-        guild_id = os.environ["DISCORD_GUILD_ID"].strip("'\"")
         channel_id = os.environ["DISCORD_CHANNEL_ID"].strip("'\"")
 
         return cls(
             discord_bot_token=token.strip("'\""),
-            discord_guild_id=int(guild_id),
             discord_channel_id=int(channel_id),
         )
 
