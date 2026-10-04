@@ -1,6 +1,6 @@
 # Polymarket Discord Bot
 
-![deployed.png](https://img.shields.io/badge/-Deployed-green)
+![not-deployed.png](https://img.shields.io/badge/-Not%20Deployed-red)
 
 A Discord bot that surfaces trending [Polymarket](https://polymarket.com) prediction market events, ranked by volume velocity.
 
