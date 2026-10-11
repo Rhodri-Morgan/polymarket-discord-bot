@@ -7,7 +7,7 @@ A Discord bot that surfaces trending [Polymarket](https://polymarket.com) predic
 ## Quick Start (Docker)
 
 ```bash
-direnv allow          # loads secrets from AWS Secrets Manager and writes .env
+direnv allow          # loads secrets from AWS SSM Parameter Store and writes .env
 make docker-run
 ```
 
@@ -19,7 +19,7 @@ make docker-run
 - [Node.js](https://nodejs.org/) (for openlogs)
 - [openlogs](https://github.com/charlietlamb/openlogs)
 - [direnv](https://direnv.net/) (auto-loads secrets via `.envrc`)
-- [AWS CLI](https://aws.amazon.com/cli/) and [jq](https://stedolan.github.io/jq/) (used by `.envrc` to fetch secrets)
+- [AWS CLI](https://aws.amazon.com/cli/) (used by `.envrc` to fetch secrets)
 
 ## Quick Start (Local)
 
@@ -57,7 +57,7 @@ Commands are synced globally. `/commands` is DM-only; `/trending` and `/misprice
 | `DISCORD_CHANNEL_ID` | Yes      | —       | Channel for scheduled trending/mispriced posts |
 | `HEALTH_PORT`        | No       | `4000`  | Health-check HTTP port                   |
 
-In prod, secrets come from AWS Secrets Manager via the ECS task definition. Locally, `.envrc` pulls `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` from `local-polymarket-discord-bot` and writes a `.env` file consumed by `make docker-*`.
+In prod, secrets come from SSM SecureStrings via the ECS task definition. Locally, `.envrc` pulls `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` from the `local-eu-west-1-polymarket-discord-bot-*` SecureStrings and writes a `.env` file consumed by `make docker-*`.
 
 ## Makefile Targets
 

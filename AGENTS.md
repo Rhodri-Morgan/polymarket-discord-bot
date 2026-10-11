@@ -58,7 +58,7 @@ All cog output that produces lists of data (e.g. trending events, future feature
 - [Docker](https://www.docker.com/)
 - [Node.js](https://nodejs.org/) (for openlogs)
 - [openlogs](https://github.com/charlietlamb/openlogs)
-- [direnv](https://direnv.net/) (auto-loads secrets from AWS Secrets Manager via `.envrc`)
+- [direnv](https://direnv.net/) (auto-loads secrets from AWS SSM Parameter Store via `.envrc`)
 
 ### Setup
 
